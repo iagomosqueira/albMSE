@@ -33,7 +33,6 @@ fwdabc.om <- function(om, ctrl, pcbar, pla, ...) {
     ctrl <- propagate(ctrl, dims(om)$iter)
   }
 
-  # TEST:
   n(biol(om))[, yrs] <- as.numeric(NA)
 
   for(it in its) {
@@ -41,7 +40,7 @@ fwdabc.om <- function(om, ctrl, pcbar, pla, ...) {
   # ASSEMBLE inputs
   inp <-   list(
     # dms: dimensions: year, season, age, lengths, fishery
-    dm_=c(nyrs, 4, 15, 27, 6),
+    dm_=c(nyrs + 1, 4, 15, 27, 6),
     # srec: rec season
     srec_=4,
     # - R0: SRR R0 in numbers
@@ -51,7 +50,6 @@ fwdabc.om <- function(om, ctrl, pcbar, pla, ...) {
     # - psi: sex ratio at birth
     psi_=0.5,
     # - epsrx: future rec devs [year]
-    # epsr_=rnorm(nyrs,0,0.355),
     epsr_=log(c(deviances(om)[, yrs,,,,it])),
     # - spr0: SRR B0/R0
     spr0_=c(params(sr(biol(om)))$v[,it] / (params(sr(biol(om)))$R0[,it] * 1000)),
@@ -60,41 +58,43 @@ fwdabc.om <- function(om, ctrl, pcbar, pla, ...) {
     # - mata: mat at age [age, season, unit (sex)]
     mata_=c(unname(aperm(mat(biol(om))[, yr,,, 1, it, drop=TRUE], c(1, 3, 2)))),
     # - wta: Wt at age [age, season, unit (sex)]
-    # BUG: UNITS?
-    wta_=c(unname(aperm(wt(biol(om))[, yr,,, 1, it, drop=TRUE], c(1, 3, 2)))) / 1000,
+    wta_=c(unname(aperm(wt(biol(om))[, yr,,, 1, it, drop=TRUE],
+      c(1, 3, 2)))) / 1000,
     # - sela: Selex at age [age, season, unit (sex), fishery]
     sela_=c(unname(aperm(abind(lapply(fisheries(om), function(x)
       catch.sel(x[[1]])[, yr,,,,it]))[drop=TRUE], c(1,3,2,4)))),
     # - nvec: Last year Ns [age, season, unit (sex)], as vector.
     Ninit_=c(aperm(n(biol(om))[, dyr,,,,it, drop=TRUE], c(1,3,2))) * 1000,
     # - cvec: Catch in projection [year, season, fishery], as vector.
-    Cb_=c(array(rep(pcbar, each=nyrs), dim=c(nyrs, 4, 6)) * 
-        array(iters(ctrl)[, 2, it], dim=c(nyrs, 4, 6))),
+    Cb_=c(
+      array(rep(pcbar, each=nyrs+1), dim=c(nyrs+1, 4, 6)) * 
+      array(c(sum(catch(om)[[1]][,dyr]), iters(ctrl)[, 2, it]),,
+        dim=c(nyrs+1, 4, 6))
+      ),
     # - pla: ALK [lengths, age, season, unit (sex)]
     pla_=c(pla),
     # - fcpue: Index of fleet to generate CPUE
     fref_=1)
-
+  
   # CALL pdynlfcpue
   rei <- do.call(pdynlfcpue, inp)
 
   # EXTRACT n - N [y,a,s,u]
   n(biols(om)[[1]])[, yrs,,,, it] <- 
-    aperm(array(rei$N, dim=c(nyrs, na, 4, 2)), c(2,1,4,3)) / 1000
+    aperm(array(rei$N, dim=c(nyrs+1, na, 4, 2)), c(2,1,4,3))[,-1,,] / 1000
 
   # EXTRACT harvest - H [y,s,f]
-  attr(om, 'hr')[[1]][, yrs,,,, it]  <- 
-    # H[y,(g),s,f] %*$ S[a,y,g,s,f]
-    expand(FLQuant(rei$H, dimnames=list(year=yrs, season=1:4, area=1:6)),
-      unit=c('F', 'M')) %*% Reduce(abind, lapply(fisheries(om),
-    function(x) catch.sel(x[[1]])[, yrs,,,,it]))
+  attr(om, 'harvest')[[1]][, yrs,,,, it]  <- (expand(FLQuant(rei$H,
+    dimnames=list(year=c(dyr, yrs), season=1:4, area=1:6)),
+    unit=c('F', 'M')) %*% abind(lapply(fisheries(om),
+    function(x) catch.sel(x[[1]])[, c(dyr, yrs),,,,it])))[,-1]
 
   # SUM across fisheries
-  attr(om, 'hrbar')[[1]][, yrs,,,, it]  <- 
-    areaSums(FLQuant(rei$H, dimnames=list(year=yrs, season=1:4, area=1:6)))
+  attr(om, 'hr')[[1]][, yrs,,,, it]  <- 
+    FLQuant(rei$H, dimnames=list(year=c(dyr, yrs), season=1:4, area=1:6))[,-1]
 
-  # COMPUTE catch.n
-  can <- attr(om, 'hr')[[1]][, yrs,,,, it] %*%
+  # COMPUTE catch.
+  can <- attr(om, 'harvest')[[1]][, yrs,,,, it] %*%
     (n(biols(om)[[1]])[, yrs,,,, it])
 
   # ASSIGN as landings.n per fleet
