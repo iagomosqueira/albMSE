@@ -38,12 +38,11 @@ method(oem) <- shortcut.oem
 # TEST fwdabc.om
 
 ctrl <- propagate(fwdControl(year=2021:2045, quant="catch",
-  value=runif(25, 47000, 53000)), nit)
-
-ctrl <- propagate(fwdControl(year=2021:2045, quant="catch",
   value=35000), nit)
 
+# ny = 25
 tes <- fwdabc.om(om, ctrl, split=pcbar)$om
+
 
 # - CHECK targets
 

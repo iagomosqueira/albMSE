@@ -18,7 +18,7 @@ output:
   bookdown::pdf_document2:
     fig_caption: yes
     number_sections: yes
-    toc: yes
+    toc: no
     csl: boot/initial/report/ices-journal-of-marine-science.csl
 bibliography: boot/initial/report/references.bib
 tags:
@@ -31,8 +31,6 @@ library(knitr)
 opts_chunk$set(echo=FALSE, message=FALSE, warning=FALSE, fig.align="center",
   fig.width=5, fig.height=3, fig.pos='htb', out.width="60%")
 ```
-
-$\nocite{Leyshon_2021}$
 
 # Introduction
 
@@ -55,7 +53,7 @@ An summary diagram of the ABC algorithm is presented in Figure \@ref(fig:abc). O
 ```{r abc, fig.cap="Schematic diagram of a simplifed ABC process to estimate the posterior distribution of a model parameter (Leyshon, 2021)"}
 include_graphics("boot/initial/report/abc.png")
 ```
-The axes of uncertainty included in the assembled OMs for albacore covers those previously explored in the stock assessment based OMs presented in the previous suite of OMs [@Mosqueira_2021]:
+The axes of uncertainty included in the assembled OMs for albacore covers those previously explored in the stock assessment based OMs presented in the previous suite of OMs [@Mosqueira_2024]:
 
 - Use of - and generation of data from - alternative CPUE series
 - Influence of size data on estimates
@@ -71,7 +69,7 @@ The OMs intend to characterize the dynamics and uncertainty of the stock alive t
 - Time-frame for conditioning is 2000 -- 2020, so as to model all surviving cohorts.
 - Model considers four long-line fleets, one *other* fleet and one purse seine fleet.
 
-## OMs
+## Opertating Models
 
 A number of OMs have been conditioned by employing two alternative indices of abundance (LL CPUEs in areas 1, NW, and 3, SW), and different prior formulations. After presentation to WPM [@WPM_2024] two OMs have been selected to proceed. The reference case OM (Figures \@ref(fig:om) and \@ref(fig:om-annual)) follows the LL CPUE in area 1 (NW) as index of abundance, which is the same as employed in the base case stock assessment [@WPTmT_2022]. The uncertainty in stock size can be evaluated from the computed values for virgin biomass and recruitment (Figure \@ref(fig:om-refpts)).
 
@@ -87,7 +85,7 @@ include_graphics("report/om-annual.png")
 include_graphics("report/om-refpts.png")
 ```
 
-The robustness includes an OM incorporates a 1% annual increase in catchability for the combined LL fleets included in the index of abundance. Additionally future robustness scenarios include the following:
+The robustness scenarios include an OM incorporates a 1% annual increase in catchability for the combined LL fleets included in the index of abundance. Additionally future robustness scenarios include the following:
 
 - Two alternative levels of future recruitment, high and low, defined as a 30% increase and decrease, respectively, from historical levels of variability.
 - Larger and more spasmodic recruitment variability, leading to more intense increases and decreases in abundance.
@@ -123,3 +121,5 @@ Work on the MSE for albacore is planned to continue along the lines presented ab
 Work by IM has been carried out under contract with the Food and Agriculture Organization of the United Nations (FAO-IOTC). Work by RH was funded by the Department of Foreign Affairs and Trade of the Government of Australia. The content of this document does not represent in any way the present or future position of FAO-IOTC on the matters discussed.
 
 # References
+
+(ref:invisible) [@Leyshon_2021]

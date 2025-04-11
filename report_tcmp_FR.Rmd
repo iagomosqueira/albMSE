@@ -1,0 +1,124 @@
+---
+title: "Développement des analyses de l'Évaluation de la Stratégie de Gestion pour le germon de l’océan Indien"
+subtitle: IOTC-2025-TCMP09-04
+author:
+  - Iago Mosqueira (WMR), <iago.mosqueira@wur.nl>
+  - Richard Hillary (CSIRO), <rich.hillary@csiro.au>
+date: 9\textsuperscript{ème} Comité Technique sur les Procédures de Gestion de la CTOI – 12 avril 2025
+documentclass: article
+header-includes: 
+  - \usepackage{float}
+  - \usepackage{booktabs}
+  - \usepackage[onehalfspacing]{setspace}
+  - \usepackage{fancyhdr}
+  - \pagestyle{fancy}
+  - \fancyhead[R]{IOTC-2025-TCMP-04}
+  - \fancyhead[L]{Mosqueira \& Hillary -- ESG germon}
+output:
+  bookdown::pdf_document2:
+    fig_caption: yes
+    number_sections: yes
+    toc: no
+    csl: boot/initial/report/ices-journal-of-marine-science.csl
+bibliography: boot/initial/report/references.bib
+tags:
+abstract:
+license: Creative Commons Attribution-ShareAlike 4.0 International Public License
+---
+
+```{r, knitr, echo=FALSE, message=FALSE}
+library(knitr)
+opts_chunk$set(echo=FALSE, message=FALSE, warning=FALSE, fig.align="center",
+  fig.width=5, fig.height=3, fig.pos='htb', out.width="60%")
+```
+
+# Introduction
+
+Le développement des analyses de l’Évaluation de la Stratégie de Gestion (ESG) pour le germon de l’océan Indien va entamer sa phase finale. Un ensemble actualisé de Modèles Opérationnels (MO) a été conditionné en appliquant une approche méthodologique novatrice qui a résolu les problèmes rencontrés avec l’ensemble précédent, directement basé sur l’évaluation du stock.
+
+Des difficultés techniques ont retardé l’évaluation des Procédures de Gestion (PG) candidates, qui nécessitent encore un cycle d’examen par le Groupe de travail sur les Méthodes de la CTOI avant de pouvoir être présentées au CTPG.
+
+Le présent document rend compte des principales caractéristiques de l’approche adoptée pour le conditionnement des MO pour ce stock, présente les résultats initiaux et indique les prochaines étapes des travaux. Un retour d’informations du CTPG est requis pour ce qui concerne l’ensemble des objectifs de gestion prévu à étudier.
+
+# Conditionnement des Modèles Opérationnels
+
+Les Modèles Opérationnels pour les stocks CTOI ont été assemblés en suivant deux méthodes alternatives. Une grille de scénarios du modèle, formulés à l’aide d’un ensemble d’hypothèses et de données d’entrée alternatives, est élaborée autour du cas de base du modèle d’évaluation. Les MO pour le patudo, l’espadon et le listao ont tous suivi cette approche. Le conditionnement peut également se baser sur un ensemble de possibles états a priori de la dynamique historique et de l’état actuel et une évaluation de leur crédibilité. L’analyse précédente de l’ESG pour le listao [@Bentley_2015], par exemple, utilisait une méthode de ce type [@Bentley_2012].
+
+Le MO actuel pour le germon suit la dernière approche [@Hillary_2024a], en utilisant les données les plus récentes dans un système d’estimation élaboré sur les concepts émergents de calcul bayésien approximatif [Approximate Bayesian Computation - ABC, @Sunnaker_2013] et de vraisemblance synthétique [Synthetic Likelihood - SL, @Wood_2010]. L’objectif est de générer une distribution de la probabilité de l’abondance, de la mortalité et de l’état actuels qui concorde avec les données disponibles ainsi qu’avec un ensemble de possibles états a priori d’une nature préalablement définie, certains d’entre eux étant alimentés par les résultats de l’évaluation du stock. Cet ensemble de la dynamique récente peut alors être utilisé pour initialiser les MO utilisés pour projeter le stock dans l’avenir et tester les PG candidates.
+
+## L’algorithme ABC
+
+La Figure \@ref(fig:abc) présente un diagramme résumé de l’algorithme ABC. Les données observées, dans ce cas la capture totale, les fréquences de longueurs dans la capture et les indices d’abondance de PUE, sont combinées à des distributions a priori pour un certain nombre de paramètres, tels que la pente et la mortalité naturelle. Chaque ensemble de paramètres donne lieu à une trajectoire de la population qui peut être comparée aux données observées. La divergence entre les deux est utilisée pour décider si chacune des simulations individuelles est acceptée ou rejetée. Une distribution a posteriori finale des trajectoires et de la dynamique de la population est ensuite obtenue, laquelle servira de base au MO.
+
+```{r abc, fig.cap="Diagramme schématique d’un processus ABC simplifié permettant d’estimer la distribution a posteriori d’un paramètre du modèle (Leyshon, 2021)"}
+include_graphics("boot/initial/report/abc.png")
+```
+
+Les axes d’incertitude inclus dans les MO assemblés pour le germon couvrent ceux précédemment étudiés dans les MO basés sur l’évaluation du stock, présentés dans l’ensemble précédent des MO [@Mosqueira_2024]:
+
+- Utilisation et génération de données d’une série de PUE alternative
+- Influence des données de tailles sur les estimations
+- Impact des augmentations de la capturabilité supposées dans les flottilles LL
+- Incertitudes quant à la pente du stock-recrutement et la mortalité naturelle.
+- Incertitudes quant à la variabilité du recrutement
+
+Les MO visent à caractériser la dynamique et l’incertitude du stock vivant aujourd’hui, plutôt qu’à reconstruire l’ensemble de son historique. Seules les 21 dernières années de données sont donc utilisées dans l’analyse. Finalement, une approche de la structure des pêcheries plus pragmatique a été adoptée, limitant le nombre de pêcheries et agrégeant les données dans le temps afin d’accroître leur contenu informatif. La structure finale du modèle est comme suit :
+
+- Structurée annuellement mais avec quatre saisons et un recrutement dans une seule saison prédéterminée.
+- Pas de structure spatiale explicite mais avec la même approche de «zones en tant que flottilles» que dans l’évaluation du stock.
+- Dynamique de la population structurée par sexe, induite par la croissance et la sélectivité par âge.
+- La période de conditionnement est 2000 – 2020 afin de modéliser toutes les cohortes survivantes.
+- Le modèle étudie quatre flottilles palangrières, une flottille *autres* et une flottille de senneurs.
+
+## Modèles Opérationnels
+
+Plusieurs MO ont été conditionnés en utilisant deux indices d’abondance alternatifs (PUE de LL dans les zones 1, NO, et 3, SO), et différentes formulations a priori. Faisant suite à leur présentation au GTM [@WPM_2024], deux MO ont été sélectionnés pour la suite. Le MO du cas de référence (Figures \@ref(fig:om) et \@ref(fig:om-annual)) suit la PUE de LL dans la zone 1 (NO) en tant qu’indice d’abondance, qui est le même que celui utilisé dans le cas de base de l’évaluation du stock [@WPTmT_2022]. L’incertitude quant à la taille du stock peut être évaluée d’après les valeurs calculées pour le recrutement et la biomasse vierges (Figure \@ref(fig:om-refpts)).
+
+```{r om, fig.cap="Séries temporelles trimestrielles du recrutement et de la biomasse totale pour le MO de référence pour le germon de l’océan Indien conditionné en suivant la méthodologie ABC."}
+include_graphics("report/om.png")
+```
+
+```{r om-annual, fig.cap="Agrégation annuelle des séries temporelles du recrutement, de la biomasse du stock reproducteur et des captures pour le MO de référence pour le germon de l’océan Indien conditionné en suivant la méthodologie ABC."}
+include_graphics("report/om-annual.png")
+```
+
+```{r om-refpts, fig.cap="Distribution des valeurs pour la biomasse vierge (B0), le recrutement vierge (R0) et le RMD renvoyées par le MO de référence pour le germon de l’océan Indien conditionné en suivant la méthodologie ABC."}
+include_graphics("report/om-refpts.png")
+```
+
+Le scénario de robustesse inclut un MO intégrant une augmentation annuelle de 1% de la capturabilité pour les flottilles LL combinées incluses dans l’indice d’abondance. En outre, les futurs scénarios de robustesse incluent ce qui suit :
+
+- Deux niveaux alternatifs du recrutement futur, élevé et faible, définis comme une augmentation et une réduction de 30%, respectivement, par rapport aux niveaux historiques de variabilité.
+- Une variabilité du recrutement plus importante et plus spasmodique donnant lieu à des augmentations et à des réductions de l’abondance plus intenses.
+- Un scénario du changement climatique dans le cadre duquel des températures plus élevées devraient engendrer une croissance plus rapide, une maturité plus précoce et une taille maximum réduite. Il n’existe pas d’évaluation précise de l’effet des prédictions potentielles du changement climatique sur le niveau de ces changements, mais la direction ou le changement à tester suit les conclusions des récentes analyses de divers stocks de thons [@Erauskin_Extramiana_2023].
+- Différents niveaux de précision et de biais dans les indices d’abondance de PUE.
+
+# PG candidates
+
+Deux types de PG candidates sont actuellement évaluées, conformément à ce qui a été réalisé pour d’autres stocks CTOI. Tout d’abord, une PG empirique qui suit les changements de l’indice de PUE de LL pour la zone 1. Une valeur de référence est établie pour cet indice, en se fondant sur les périodes au cours desquelles l’évaluation du stock a estimé que la biomasse se situe aux niveaux ou proche des niveaux de $B_{MSY}$. Une règle de contrôle de l’exploitation (HCR) est ensuite appliquée, qui renvoie un avis sur le total admissible des captures selon que l’indice se situe à l’intérieur ou à l’extérieur d’un tampon autour de sa valeur de référence (Figure \@ref(fig:bufferhcr)).
+
+```{r bufferhcr, fig.cap="Représentation de la HCR tampon proposée pour la PG empirique et la PG induite par un modèle pour le germon de l’océan Indien."}
+include_graphics("boot/initial/report/buffer.png")
+```
+
+Par rapport à une HCR standard en crosse de hockey, comme celle de la PG pour l’espadon de l’océan Indien (Résolution CTOI 24/08), celle-ci comporte deux caractéristiques à étudier. La première est que les captures augmentent, bien qu’à un rythme modéré, à mesure que la taille du stock augmente, répliquant ainsi l’effet qu’aurait une règle établissant la mortalité par pêche. Ensuite, à des tailles de population restreintes, en-deçà de la limite inférieure fixée, la réduction des captures est plus prononcée, reflétant de nouveau le comportement d’une règle basée sur la mortalité par pêche.
+
+La deuxième PG testée se base sur un modèle de production excédentaire (ou de dynamique de la biomasse) ajusté à l’indice d’abondance de PUE de la LL pour la zone 1. La même HCR sera appliquée mais, dans ce cas, la capture totale est déterminée en fonction du niveau d’épuisement estimé du modèle. Le niveau cible est fixé à 40% de la biomasse vierge, comme dans la Résolution CTOI 15/10, et la limite inférieure à 10% de B0.
+
+Les simulations supposent actuellement un décalage de deux ans dans les données, ce qui est actuellement le cas pour ce stock. L’évaluation du stock qui doit être réalisée à la réunion du GTTTm de cette année utilisera des données jusqu’en 2023. L’effet potentiel d’un décalage d’un an dans les données sera étudié. Si la mise en œuvre d’une PG doit relever de la compétence du Comité Scientifique de la CTOI, plus tard dans l’année, les données de captures et de PUE de l’année précédente pourraient alors être disponibles. Un décalage de gestion de deux ans, le délai entre l’évaluation de la PG et la mise en œuvre effective de la limite de captures, sera également supposé, comme cela est actuellement le cas pour les autres stocks.
+
+# Objectifs de calibrage
+
+Faisant suite aux propositions soumises pour d’autres stocks et à la discussion précédemment tenue par le CTPG [@TCMP_2023_FR], trois objectifs de gestion sont étudiés pour le calibrage des deux types de PG candidates: des probabilités de 50, 60 et 70% que le stock se situe dans le quadrant vert du diagramme de Kobe. Pour ce MO particulier, cela est déterminé en calculant chaque année, et par trimestre, la proportion des scénarios du modèle pour lesquels la biomasse du stock reproducteur (SSB) se situe au-delà du point de référence pertinent, et la même proportion dans laquelle le taux de capture chute en-deçà de la valeur de référence du RMD. Le MO présenté ici utilise le taux de capture, la proportion de la biomasse disponible pour les pêcheries à chaque intervalle temporel qui est capturée, en tant que mesure du niveau d’exploitation plutôt que la mortalité par pêche traditionnelle. Ce choix, fait pour des raisons de calcul, ne nécessite qu’un léger changement de perspective lors de l’évaluation des valeurs absolues, étant donné que le taux de capture a des valeurs entre 0 et 1. Les comparaisons avec les points de référence pertinents sont toujours à une échelle relative.
+
+# Calendrier des travaux
+
+Les travaux sur l’ESG du germon devraient se poursuivre en suivant les grandes lignes présentées ci-dessus, avec l’inclusion de toute demande ou de tout retour d’informations du CTPG. Le développement vise à résoudre quelques questions techniques en suspens à très court terme. Un ensemble complet de simulations sur tous les MO, et dans le cadre de tous les scénarios de robustesse, sera présenté à la prochaine session du Groupe de travail sur les Méthodes pour approbation de l’ensemble d’outils.
+
+# Remerciements
+
+Les travaux de IM ont été réalisés dans le cadre d'un contrat avec l’Organisation des Nations Unies pour l’alimentation et l’agriculture (FAO-CTOI). Les travaux réalisés par RH ont été financés par le Département des affaires étrangères et du commerce du Gouvernement de l’Australie. Le contenu de ce document ne reflète en aucune façon la position actuelle ou future de la FAO-CTOI sur les questions discutées.
+
+# Références
+
+(ref:invisible) [@Leyshon_2021]

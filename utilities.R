@@ -104,10 +104,12 @@ fwdabc.om <- function(om, ctrl, split, ...) {
   shat <- array(run$S, dim=c(nyrs, ns, ni))
   ihat <- array(run$I, dim=c(nyrs, ns, ni))
   
-  # COMPUTE catches
+  # TEST: COMPUTE catches on year 5
+  # lapply over its & fleets
   print(unlist(lapply(seq(dm_[5]), \(i) sum(unlist(lapply(seq(6), \(x)
+    # N * S * W * HR
     sum(nhat[5,,,,i] * sela_[,,,x,i] * wta_ *
-      array(rep(hhat[5,,x,i], each=15), dim=c(15,4,2)))))))))
+      array(rep(hhat[5,, x, i], each=15), dim=c(15, 4, 2)))))))))
 
   # ASSIGN nhat[y,a,s,u,i] to n(biol)[a,y,u,s,i]
   n(biol(om))[, cyrs] <- aperm(nhat[-1,,,,,drop=FALSE], c(2,1,4,3,5))
