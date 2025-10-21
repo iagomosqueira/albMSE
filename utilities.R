@@ -2367,6 +2367,10 @@ fwdabc.om <- function(om, ctrl, pcbar, pla, verbose=FALSE, ...) {
     # - fcpue: Index of fleet to generate CPUE
     fref_=1)
 
+  # TEST: INPUT catch
+  # apply(array(rep(pcbar, each=nyrs), dim=c(nyrs, 4, 6)) *
+  #   array(c(c(catch(om)[,dyr,,,,i]), iters(ctrl)[, 2, i]), dim=c(nyrs, 4, 6)), 1, sum)
+
   # CALL pdynlfcpue, rei: S (ssb_fy), N, H, I, LF
   rei <- do.call(pdynlfcpue, inp)
 
@@ -2378,10 +2382,10 @@ fwdabc.om <- function(om, ctrl, pcbar, pla, verbose=FALSE, ...) {
   hri <- divide(FLQuant(rei$H, dimnames=list(year=yrs, season=seq(4), 
     area=names(fisheries(om)))), 5)
 
-  sei <- lapply(fisheries(om), function(x) iter(catch.sel(x[[1]]), i))
+  sei <- lapply(fisheries(om), function(x) iter(catch.sel(x[[1]])[,yrs], i))
 
-  hri <- Map(function(h, s) expand(h, unit=c('F', 'M')) %*%
-      s[, yrs], h=hri, s=sei)
+  hri <- Map(function(h, s) expand(h, unit=c('F', 'M')) %*%s,
+    h=hri, s=sei)
 
   # COMPUTE catch.n_f
   can <- lapply(hri, function(x) x %*% n(biols(om)[[1]])[, yrs,,,, i])
@@ -2440,7 +2444,7 @@ cpuescore.ind <- function(stk, idx, index = 1, refyrs = NULL, args, tracking) {
   ay <- args$ay
   dlag <- args$data_lag
   dy <- ay - dlag
-  # TODO: CHECK for frq>1
+  # TODO: CHECK for frq > 1
 
   # GET metric until dy
   met <- seasonMeans(window(biomass(idx[[index]])[1, ], end = dy))
