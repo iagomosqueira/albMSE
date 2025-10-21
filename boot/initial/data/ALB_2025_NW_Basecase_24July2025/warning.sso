@@ -1,0 +1,23 @@
+Warning 1 : fishing fleet: 1 surveytime read as: 1 normally is -1 for fishing fleet; can override for indiv. obs. using 1000+month
+Warning 2 : fishing fleet: 2 surveytime read as: 1 normally is -1 for fishing fleet; can override for indiv. obs. using 1000+month
+Warning 3 : fishing fleet: 3 surveytime read as: 1 normally is -1 for fishing fleet; can override for indiv. obs. using 1000+month
+Warning 4 : fishing fleet: 4 surveytime read as: 1 normally is -1 for fishing fleet; can override for indiv. obs. using 1000+month
+Warning 5 : fishing fleet: 5 surveytime read as: 1 normally is -1 for fishing fleet; can override for indiv. obs. using 1000+month
+Warning 6 : fishing fleet: 6 surveytime read as: 1 normally is -1 for fishing fleet; can override for indiv. obs. using 1000+month
+Warning 7 : fishing fleet: 7 surveytime read as: 1 normally is -1 for fishing fleet; can override for indiv. obs. using 1000+month
+Warning 8 : fishing fleet: 8 surveytime read as: 1 normally is -1 for fishing fleet; can override for indiv. obs. using 1000+month
+Warning 9 : fishing fleet: 9 surveytime read as: 1 normally is -1 for fishing fleet; can override for indiv. obs. using 1000+month
+Warning 10 : fishing fleet: 10 surveytime read as: 1 normally is -1 for fishing fleet; can override for indiv. obs. using 1000+month
+Warning 11 : fishing fleet: 11 surveytime read as: 1 normally is -1 for fishing fleet; can override for indiv. obs. using 1000+month
+Warning 12 : fishing fleet: 12 surveytime read as: 1 normally is -1 for fishing fleet; can override for indiv. obs. using 1000+month
+Warning 13 : fishing fleet: 13 surveytime read as: 1 normally is -1 for fishing fleet; can override for indiv. obs. using 1000+month
+Warning 14 : fishing fleet: 14 surveytime read as: 1 normally is -1 for fishing fleet; can override for indiv. obs. using 1000+month
+Warning 15 : fishing fleet: 15 surveytime read as: 1 normally is -1 for fishing fleet; can override for indiv. obs. using 1000+month
+Warning 16 : fishing fleet: 16 surveytime read as: 1 normally is -1 for fishing fleet; can override for indiv. obs. using 1000+month
+Note 1 Information: Max data length bin: 138  < max pop len bins: 140; so will accumulate larger pop len bins
+Warning 17 : Setting in starter does not request all priors, and 1 parameters have priors and are not estimated, so their prior not included in obj_fun.
+Warning 18 : Main recdev biasadj is >2 times ratio of rmse to sigmaR
+Note 2 Information: A revised protocol for the Fcast_yr specification is available and recommended.
+Warning 19 : Reminder: Number of lambdas !=0.0 and !=1.0:  18
+Note 3 Information:  N parameters that are on or within 1% of min-max bound: 2; check results, variance may be suspect
+ 19 warnings  and 3 notes 
