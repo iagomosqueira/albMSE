@@ -11,21 +11,7 @@
 # TODO: SET mpCtrl(est=shortcut.sa) as default
 # TODO: SET mseCtrl(function) method
 
-
-library(Rcpp)
-library(FLCore)
-library(ggplotFL)
-library(parallel)
-library(mvtnorm)
-library(mse)
-source("utilities.R")
-
-sourceCpp("utilities/init_pdyn.cpp")
-sourceCpp("utilities/msy_pdyn.cpp")
-sourceCpp("utilities/pdyn_lfcpue.cpp")
-
-# NC by fleet [y, s, f]
-# 
+source("config.R")
 
 load("boot/data/alb_abcdata.rda")
 load("boot/data/hmuprior.rda")
@@ -231,7 +217,7 @@ save(mczzz, file="data/om5b/mcmc_abc5b.rda", compress="xz")
 # EXTRACT
 # load('data/image/abc5b.rda')
 mcpars <- do.call(rbind, lapply(mczzz, '[[', 'pars'))
-# BUG: RE-source Rcpp
+# BUG: IF error, RE-SOURCE Rcpp files
 mcvars <- get.mcmc2.vars(mcpars)
 
 # SAVE output
@@ -245,10 +231,10 @@ load('data/om5b/mcmc_abc5b.rda')
 load('data/om5b/mcvars_abc5b.rda')
 
 # LOAD pcbar (catch proportions by fleet & season)
-pcbar <- as.matrix(fread('data/pcbar.dat'))
+pcbar <- as.matrix(fread('boot/data/pcbar.dat'))
 
 # LOAD ALK [len, age, season, sex]
-load('data/pla.rda')
+load('boot/data/pla.rda')
 
 # EXTRACT output for all iters
 system.time(
@@ -303,7 +289,7 @@ args(projection(om)) <- list(pla=pla, pcbar=pcbar)
 
 # idx: FLIndexBiomass by season, with sel.pattern by sex
 
-# BUG: mc.output to output FLQuants by fiosheru, not 'area'
+# BUG: mc.output to output FLQuants by fishery, not 'area'
 sp <- expand(divide(out$catch.sel, 5)[[1]], year=2000:2020)
 dimnames(sp)$area <- 'unique'
 
@@ -343,7 +329,7 @@ save(om, oem, file='data/om5b.rda', compress='xz')
 
 # }}}
 
-# UPDATE NC {{{
+# -- UPDATE for new NC {{{
 
 load('data/om5b.rda')
 load('data/alb_2025_nw.rda')
@@ -361,14 +347,14 @@ nom <- fwdabc.om(om, ctrl, pcbar=args(projection(om))$pcbar,
 )
 
 # CHECK catch match
-ctrl$value
 catch(nom)[, ac(2010:2023)]
+ctrl
 
 # CHECK indices
 
 onw <- observations(oem)$ALB$idx[[1]][, ac(2000:2023)]
 nnw <- survey(stock(nom)[[1]][, ac(2000:2023)],
-  observations(oem)$ALB$idx[[1]][, ac(2000:2023)]
+  observations(oem)$ALB$idx[[1]][, ac(2000:2023)])
 
 plot(index(onw), index(nnw))
 
@@ -376,7 +362,7 @@ plot(index(onw), index(nnw))
 
 om <- nom
 
-observations(oem)$ALB$idx$NW <- nnw
+observations(oem)$ALB$idx$NW[, ac(2010:2023)] <- nnw[, ac(2010:2023)]
 
 observations(oem)$ALB$stk[, ac(2010:2023)] <- nounit(stock(nom)[[1]])[, ac(2010:2023)]
 
@@ -384,40 +370,8 @@ observations(oem)$ALB$stk[, ac(2010:2023)] <- nounit(stock(nom)[[1]])[, ac(2010:
 
 om5b <- list(om=om, oem=oem)
 
-system.time(
 save(om5b, file="data/om5b_updated.rda", compress="xz")
-)
-system.time(
-saveRDS(om5b, file="data/om5b_updated.rds", compress="xz")
-)
 
-system.time(
-qs_save(om5b, file="data/om5b_updated.qs2")
-)
-
-# }}}
-
-# PROJECTIONS {{{
-
-# FWD(C=C0) 
-
-ctrl <- fwdControl(year=2024:2045, biol=1, quant='catch', value=0)
-
-system.time(
-fom_c0 <- fwdabc.om(iter(om, seq(100)), ctrl, pcbar=args(projection(om))$pcbar,
-  pla=args(projection(om))$pla, verbose=TRUE)$om
-)
-
-# FWD(C=MSY2025) 
-
-ctrl <- fwdControl(year=2024:2045, biol=1, quant='catch', value=ss25$rps$MSY)
-
-system.time(
-fom_cmsy <- fwdabc.om(iter(om, seq(100)), ctrl, pcbar=args(projection(om))$pcbar,
-  pla=args(projection(om))$pla, verbose=TRUE)$om
-)
-
-# SAVE
-save(fom_c2023, fom_c0, fom_cmsy, file="data/om5b/fwd_om5b.rda", compress="xz")
+# qs_save(om5b, file="data/om5b_updated.qs2")
 
 # }}}
