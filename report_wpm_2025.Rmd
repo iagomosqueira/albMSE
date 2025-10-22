@@ -1,15 +1,10 @@
 ---
-title: 
+title: "Simulation testing of management procedures for Indian ocean albacore tuna based on ABC operating models: report on progress"
 author: Iago MOSQUEIRA <iago.mosqueira@wur.nl>
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 documentclass: article
-header-includes: 
-  - \usepackage{float}
-  - \usepackage{lscape}
-  - \usepackage{booktabs}
-  - \usepackage{longtable}
 output:
-  pdf_document:
+  bookdown::pdf_document2:
     fig_caption: yes
     number_sections: yes
     toc: yes
@@ -21,35 +16,83 @@ license: Creative Commons Attribution-ShareAlike 4.0 International Public Licens
 ```{r knitr, echo=FALSE, message=FALSE}
 library(knitr)
 opts_chunk$set(echo=FALSE, message=FALSE, warning=FALSE,
-  out.width="90%", fig.pos='htb')
+  out.width="75%", fig.pos='htb')
 ```
 
 # Introduction
 
-# Conditioning of operating models
-
-## Methods
-
 # Operating model update
 
-- WPTmT 2025
+- ABC OM, refer to WPM_2024
 
-```{r oms-compare, fig.cap="Total catch, relative harvest rate over that at MSYm anmd SSB for the OM conditioned on the 2022 WPTmT dataset (COND), and that updated to the 2025 WPTmT dataset."}
+The original conditioning of the ABC operating models employed the datasets available at that time. These were assembled for the 2022 stock assessment of albacore tuna [@WPTmT_2022]. An updated catch and CPUE dataset is now available [@WPTmT_2025] that contains data up to 2023. A revision of past catch data has also taken place. The assessment results, in both cases for the NW-CPUE models, show differences in the estimated population trajectories (Figure \@ref(fig:sas-compare)). Overall stock scale differs by 8% for both virgin SSB and recruitment.
+
+```{r sas-compare, fig.cap="Time series of recruitment, SSB, catch and fishing mortality from the WPTmt 2022 and WPTmt 2025 SS3 base-case stock assessments."}
+knitr::include_graphics("report/data_sas_compare.png")
+```
+
+The OMs have now been updated for the new catch information, but no full reconditioning has been carried out. The OM was projected for the new nominal catch series between 2010 and 2023, with recruitment being predicted by the stock-recruit relationship, with standard lognormal deviances. The updated base case OM sjows a stock that has been overexploited in the recent past but has recovered in abundance (Figure \@ref(fig:oms-compare)).
+
+```{r oms-compare, fig.cap="Total catch, relative harvest rate over that at MSY, recruitment, and SSB for the OM conditioned on the 2022 WPTmT dataset (COND), and that updated to the 2025 WPTmT dataset."}
 knitr::include_graphics("report/data_oms_compare.png")
 ```
 
-```{r om-compare-sa, fig.cap="SSB as estimated by the ABC base case operating model, with the trajectories from the WPTmT 2022 SS3 stock assessment (blue) and the WPTmT 2025 model."}
+The index of abundance of the base case OM, the LL CPUE series in the NW area, has been recalculated given the updated abundances but using the original estimated selectivity and catchability. Figure \@ref(fig:ids-compare) present the two quarterly indices.
+
+```{r ids-compare, fig.cap="LLCPUE1 (NW) indices of abundance from the 2022 and 2025 stock assessments of IOTC albacore."}
+knitr::include_graphics("report/data_id1_compare.png")
+```
+
+- SSB in updated OM matches better new SA
+- REC differ as devianmces from SRR are modelled in different ways
+
+```{r om-compare-sa, fig.cap="SSB and recruitment as output by the ABC base case operating model, with the superimposed trajectories from the WPTmT 2022 SS3 stock assessment (blue) and the WPTmT 2025 model (green)."}
 knitr::include_graphics("report/data_om_compare_sa.png")
 ```
 
-```{r om-fwd, fig.cap="Time series of catch, relative harvest rate and SSB for two future projections of the base case OM: with no catch (C0) and for catch equal to the MSY estimated by the 2025 stock assessment model run (MSY)."}
+- FWD(C=MSY) and FWD(C=0)
+
+```{r om-fwd, fig.cap="Time series of catch, relative harvest rate, recruitment and SSB for two future projections of the base case OM: with no catch (C0) and for catch equal to the MSY estimated by the 2025 stock assessment model run (MSY)."}
 knitr::include_graphics("report/data_om_fwd.png")
 ```
 
+\clearpage
 
+# Exploration of candidate management procedures
 
+- Time period
+- Tuning period
+- Performance statistics
+  - Kobe green HR/HRFMSY
 
+## Exploration of catch levels through a constant catch MP
 
+- C = 41719
+- No TAC limits
 
+```{r ccatch, fig.cap="Time series of catch, relative harvest rate, recruitment and SSB for the base case OM projected under a constant catch MP, and tuned to obtain a P(Kobe=green) of 60% over the 2034-2038 period."}
+knitr::include_graphics("report/model_ccatch.png")
+```
+
+## cpue.ind + bufferdelta.hcr
+
+- TEST
+
+- TUNING
+
+# Next steps
+
+- FINALIZE tuning model-free
+- RUNS on robustness OMs
+- ADD CC robustness, DEFINE w/WPTmT
+- TEST under IEM
+- OEM catch error, 20% - 30%
+- RUN all for jabba.sa + bufferdelta.hcr(depletion)
+- REPORT by start of DEC 2026
+- CIRCULATE to interested parties
+- PRESENT at WPM MSE FEB 2026
+
+# Acknowledgements
 
 # References
+

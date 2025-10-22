@@ -346,6 +346,9 @@ nom <- fwdabc.om(om, ctrl, pcbar=args(projection(om))$pcbar,
   pla=args(projection(om))$pla, verbose=TRUE)$om
 )
 
+# Rnom
+plotMetrics(OLD=iter(om, seq(25)), NEW=Rnom)
+
 # CHECK catch match
 catch(nom)[, ac(2010:2023)]
 ctrl
@@ -371,7 +374,5 @@ observations(oem)$ALB$stk[, ac(2010:2023)] <- nounit(stock(nom)[[1]])[, ac(2010:
 om5b <- list(om=om, oem=oem)
 
 save(om5b, file="data/om5b_updated.rda", compress="xz")
-
-# qs_save(om5b, file="data/om5b_updated.qs2")
 
 # }}}

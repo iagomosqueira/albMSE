@@ -2439,15 +2439,19 @@ hr <- function(om) {
 # cpuescore.ind {{{
 # Calculated over mean and sd on refyrs
 
-cpuescore.ind <- function(stk, idx, index = 1, refyrs = NULL, args, tracking) {
+cpuescore.ind <- function(stk, idx, index = 1, refyrs = NULL, ayears=3,
+  args, tracking) {
+
   # ARGS
   ay <- args$ay
   dlag <- args$data_lag
   dy <- ay - dlag
-  # TODO: CHECK for frq > 1
+  dys <- seq(dy - ayears + 1, dy)
 
   # GET metric until dy
   met <- seasonMeans(window(biomass(idx[[index]])[1, ], end = dy))
+  
+  # TODO: ADD average 3 years
 
   if (!is.null(refyrs)) {
     ref <- met[, ac(refyrs)]
@@ -2455,8 +2459,8 @@ cpuescore.ind <- function(stk, idx, index = 1, refyrs = NULL, args, tracking) {
     ref <- met
   }
 
-  ind <- FLQuants(zscore = (met[, ac(dy)] %-% yearMeans(ref)) %/%
-    sqrt(yearVars(ref)))
+  ind <- FLQuants(zscore = expand((yearMeans(met[, ac(dys)]) %-% yearMeans(ref)) %/%
+    sqrt(yearVars(ref)), year=dy))
 
   track(tracking, "cpue.ind", ac(ay)) <- ind$zscore
 
@@ -2500,7 +2504,7 @@ setMethod('fbar', signature(object="FLombf"),
     relhr(object)
 })
 
-mets <- list(SB=ssb, C=catch, HR=relhr)
+mets <- list(SB=ssb, C=catch, HR=relhr, R=function(x) unitSums(rec(x)[[1]][,,,4]))
 
 setMethod('depletion', signature(x='FLombf'),
   function(x)
@@ -2553,13 +2557,13 @@ statistics <- list(
   green = list(~yearSums(FLQuant((SB / SBMSY) > 1 & HR < 1)) / dim(SB)[2],
     name = "P(Green)", desc = "Probability of being in Kobe green quadrant"),
   # orange
-  orange = list(~iterSums(FLQuant((SB / SBMSY) >= 1 & HR >= 1)) / dim(SB)[6],
+  orange = list(~iterSums(FLQuant((SB / SBMSY) > 1 & HR >= 1)) / dim(SB)[6],
     name = "P(Orange)", desc = "Probability of being in Kobe orange quadrant"),
   # yellow
-  yellow = list(~iterSums(FLQuant((SB / SBMSY) < 1 & HR < 1)) / dim(SB)[6],
+  yellow = list(~iterSums(FLQuant((SB / SBMSY) <= 1 & HR < 1)) / dim(SB)[6],
     name = "P(Yellow)", desc = "Probability of being in Kobe yellow quadrant"),
   # red
-  red = list(~yearSums(FLQuant((SB / SBMSY) < 1 & HR > 1)) / dim(SB)[2],
+  red = list(~yearSums(FLQuant((SB / SBMSY) <= 1 & HR >= 1)) / dim(SB)[2],
     name = "P(Red)", desc = "Probability of being in Kobe red quadrant"),
   # PSBMSY
   PSBMSY = list(~yearMeans((SB / SBMSY) >= 1), name = "P(SB>=SB[MSY])",
@@ -2593,12 +2597,9 @@ zscore <- function(x, mean=yearMeans(x), sd=sqrt(yearVars(x)))
   (x %-% mean) %/% sd
 
 bufferdelta.hcr <- function(stk, ind, target=0, metric='zscore',
-  width=1, lim=target - 2 * width, sloperatio=0.20, initac=NULL,
+  width=1, bufflow=target - width, buffupp=target + width,
+  lim=target - 2 * width, sloperatio=0.20, initac=NULL,
   dupp=NULL, dlow=NULL, all=TRUE, ..., args, tracking) {
-
-  # CONVERT parameters
-  bufflow <- target - width
-  buffupp <- target + width
 
   # EXTRACT args
   ay <- args$ay
@@ -2791,16 +2792,19 @@ plotOMRuns <- function(x, ...) {
   plotListFLQuants(ms)
 }
 
-plotMetrics <- function(...) {
+plotMetrics <- function(..., maxhr=5) {
 
   args <- list(...)
+
+  if(is.null(names(args)))
+    names(args) <- paste0("OM", seq(length(args)))
 
   ms <- lapply(args, function(i) {
     FLQuants(lapply(mets, function(f) f(i)))
   })
-
+  
   ms <- lapply(ms, function(i) {
-    names(i) <- c("SSB (t)", "C (t)", "H/H[MSY]")
+    names(i) <- c("SSB (t)", "C (t)", "H/H[MSY]", "R")
     return(i)
   })
 
@@ -2808,7 +2812,7 @@ plotMetrics <- function(...) {
 
   plotListFLQuants(ms) +
     geom_hline(data=ref, aes(yintercept=data), linetype=2, alpha=0.60) +
-    scale_y_facet(qname == 'H/H[MSY]', limits = c(0, 5))
+    scale_y_facet(qname == 'H/H[MSY]', limits = c(0, maxhr))
 }
 
 # }}}
