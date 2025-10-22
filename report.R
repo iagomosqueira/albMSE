@@ -8,6 +8,8 @@
 
 source("config.R")
 
+library(mseviz)
+
 mkdir("report")
 
 # --- data.R {{{
@@ -88,12 +90,14 @@ dev.off()
 
 # --- model.R {{{
 
-# LOAD
+# LOAD om
 load('data/om5b_updated.rda')
 om <- iter(om5b$om, seq(100))
 
+# LOAD results
 load("model_cpue_buffer.rda")
 
+# LOAD performance
 perf <- readPerformance()
 
 # PLOT constant catch tuned MP
@@ -102,8 +106,6 @@ plotMetrics(OM=window(om, end=2023),
   'Constant catch'=window(om(res[[1]]), start=2023)) +
   geom_vline(xintercept=ISOdate(c(2034, 2038), 1, 1), linetype=3, alpha=0.8)
 dev.off()
-
-library(mseviz)
 
 # ASSEMBLE dat: mean performance 2034-2038
 dat <- perf[year %in% seq(2034, 2038), .(data=mean(data)),
