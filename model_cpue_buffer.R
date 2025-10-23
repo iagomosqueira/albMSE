@@ -115,7 +115,7 @@ ctrl <- mpCtrl(list(
   est = mseCtrl(method=shortcut.sa),
   # HCR
   hcr = mseCtrl(method=fixedC.hcr,
-    args=list(ctrg=25000))
+    args=list(ctrg=42070))
 ))
 
 # RUN
@@ -151,7 +151,7 @@ performance(tune)[statistic == 'green' & year %in% ty, mean(data)]
 args(control(tune)$hcr)$ctrg
 
 # PLOT
-plotMetrics(OM=window(om, end=2023), CtrgK60=window(om(tune), start=2023)) +
+plotMetrics(OM=window(om(tes), end=2023), CtrgK60=window(om(tes), start=2023)) +
   geom_vline(xintercept=ISOdate(c(ty[1], ty[length(ty)]), 1, 1), linetype=3, alpha=0.8)
 
 # }}}
@@ -166,17 +166,20 @@ ctrl <- mpCtrl(list(
     args=list(index=1, refyrs=c(2000:2005, 2015:2020))),
   # HCR
   hcr = mseCtrl(method=buffer.hcr,
-    args=list(target=25000, lim=-2, bufflow=-1, buffupp=1, sloperatio=0.15,
-      dlow=0.85, dupp=1.15, metric="zscore", initac=42000))
+    args=list(target=42070, lim=-6, bufflow=-5, buffupp=5, sloperatio=0,
+      dlow=0.85, dupp=1.15, metric="zscore", initac=42070))
 ))
 
 # RUN
-tes <- mp(iter(om, seq(5)), iter(oem, seq(5)), ctrl=ctrl,
+tes <- mp(om, oem, ctrl=ctrl,
   args=list(iy=iy, fy=fy, frq=3))#, .DEBUG=TRUE)
 
 # PLOT
-plotMetrics(OM=window(iter(om, seq(5)), end=2023),
-  TES=window(om(tes), start=2023))
+
+plotMetrics(OM=window(om(tes), end=2023), CtrgK60=window(om(tes), start=2023)) +
+  geom_vline(xintercept=ISOdate(c(ty[1], ty[length(ty)]), 1, 1), linetype=3, alpha=0.8)
+
+
 
 # TUNE for P(Kobe=green) = 60%
 system.time(
