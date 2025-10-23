@@ -50,7 +50,7 @@ knitr::include_graphics("report/data_id1_compare.png")
 knitr::include_graphics("report/data_om_compare_sa.png")
 ```
 
-- FWD(C=MSY) and FWD(C=0) plots give a useful indication of the medium-term likely dynamics of the stock for harvest rates that are below the MSY rate 
+- FWD(C=MSY) and FWD(C=0) plots give a useful indication of the medium-term likely dynamics of the stock for harvest rates that are below the MSY harvest rate 
 
 ```{r om-fwd, fig.cap="Time series of catch, relative harvest rate, recruitment and SSB for two future projections of the base case OM: with no catch (C0) and for catch equal to the MSY estimated by the 2025 stock assessment model run (MSY)."}
 knitr::include_graphics("report/data_om_fwd.png")
@@ -73,6 +73,15 @@ knitr::include_graphics("report/data_om_fwd.png")
 ```{r ccatch, fig.cap="Time series of catch, relative harvest rate, recruitment and SSB for the base case OM projected under a constant catch MP, and tuned to obtain a P(Kobe=green) of 60% over the 2034-2038 period."}
 knitr::include_graphics("report/model_ccatch.png")
 ```
+
+The constant catch MP, while obviously not considered usable in reality, can be an extremely useful tool when it comes to the design and tuning of more dynamic MPs (either empirical or model-based). Specifically, it gives the MP designer an idea of what general level of medium term catches are likely to be required to achieve the tuning target. If the constant catch MP exceeds/is below the current catch level then future MP-calculated catches probably need to increase/decrease on average. As can be seen in Figure 6 the estimated constant catch that meets the tuning criteria (41,719t) is very close indeed to the 2023 catch level of around 41,800t. This already implies a number of features required to be built into for example an empirical MP driven by a single LL CPUE index:
+
+  1. That current average CPUE is likely to be somewhere close to where we want the MP to keep the fishery 
+  2. Any target-type or "buffer-zone" behaviour in the MP needs to reflect this or the MP will be unbalanced, in that it is trying to change the TAC when there is no need. If not the MP will almost certainly struggle to tune to the relevant objectives
+  3. Any limit-like behaviour in the MP (where the TAC is rapidly reduced as CPUE declines) need to be cognisant of where the "target" levels likely are
+  4. Any feature for the MP to increase catches above the "target" CPUE needs to reflect where that target is likely located
+  5. Be careful not to unintentionally program the MP with a limited ability to act on more extreme robustness trials. This can be a problem when we need to tune an MP where little catch variation is required to reach to tuning target
+
 
 ## cpue.ind + bufferdelta.hcr
 
