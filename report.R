@@ -52,6 +52,12 @@ dev.off()
 load('data/om5b.rda')
 load('data/om5b_updated.rda')
 
+# PLOT OM
+
+taf.png("data_om_basecase.png")
+plotMetrics('Base case'=window(om, end=2020), maxhr=2)
+dev.off()
+
 # PLOT 2022 and 2025 OMs
 taf.png("data_oms_compare.png")
 plotMetrics('2022'=window(om, end=2020), '2025'=window(om5b$om, end=2023), maxhr=2)
@@ -61,7 +67,7 @@ dev.off()
 
 d1 <- as.data.frame(metrics(window(base$stk, start=2000), metrics=list(
   SB=function(x) unitSums(seasonSums(ssb(x)[,,1,1])),
-  R=function(x) unitMeans(seasonSums(rec(x)[,,1,1])))))
+  R=function(x) unitMeans(seasonSums(rec(x)[,,1,1])))))=3
 
 d2 <- as.data.frame(metrics(window(ss25$stk, start=2000), metrics=list(
   SB=function(x) unitSums(seasonSums(ssb(x)[,,1,1])),
@@ -72,6 +78,17 @@ plot(FLQuants(lapply(mets[c(1,4)], function(x) window(x(om5b$om), end=2023)))) +
   ylim(0, NA) +
   geom_flquantiles(data=d1, colour="blue") +
   geom_flquantiles(data=d2, colour="darkgreen")
+dev.off()
+
+#
+
+taf.png("data_om_compare_sb0.png")
+plot(refpts(om)['SB0',]) +
+  geom_vline(xintercept=base$rps$SB0, colour="darkgreen") +
+  annotate(geom='point', x=base$rps$SB0, y=0, color="darkgreen", size=3) +
+  geom_vline(xintercept=ss25$rps$SB0, colour="blue") +
+  annotate(geom='point', x=ss25$rps$SB0, y=0, color="blue", size=3) +
+  ggtitle("Virgin SSB")
 dev.off()
 
 
@@ -95,7 +112,7 @@ load('data/om5b_updated.rda')
 om <- iter(om5b$om, seq(100))
 
 # LOAD results
-load("model_cpue_buffer.rda")
+load("model/model_cpue_buffer.rda")
 
 # LOAD performance
 perf <- readPerformance()
@@ -114,6 +131,13 @@ dat <- perf[year %in% seq(2034, 2038), .(data=mean(data)),
 plotBPs(dat)
 
 # PLOT runs
+taf.png("model_buffer_catch.png")
+plotMetrics(OM=window(om, end=2023),
+  'buffer(C~CPUE)'=window(om(res[[2]]), start=2023)) +
+  geom_vline(xintercept=ISOdate(c(2034, 2038), 1, 1), linetype=3, alpha=0.8)
+dev.off()
+
+# PLOT runs
 taf.png("model_runs_compare.png")
 plotMetrics(OM=window(om, end=2023),
   'Constant catch'=window(om(res[[1]]), start=2023),
@@ -122,3 +146,10 @@ plotMetrics(OM=window(om, end=2023),
 dev.off()
 
 # }}}
+
+# RENDER
+
+render('report_wpm_2025.Rmd', output_dir='report',
+  output_file='IOTC-2025-WPM16-11_ALB_MSE.pdf')
+
+render('presentation_wpm_2025.Rmd', output_dir='report', output_file='presentation-IOTC-2025-WPM16-11_ALB_MSE.pdf')
