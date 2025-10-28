@@ -1,11 +1,27 @@
-# data.R - LOAD SS3 model and add ABC output
-# abc_tuna/om/data.R
+# data.R - DESC
+# /home/mosqu003/Active/ALB_MSE-IOTC/albMSE/data.R
 
-# Copyright (c) WUR, 2023.
-# Author: Iago MOSQUEIRA (WMR) <iago.mosqueira@wur.nl>
+# Copyright (c) WMR, 2025.
+# Author: Iago MOSQUEIRA <iago.mosqueira@wur.nl>
 #
 # Distributed under the terms of the EUPL-1.2
 
+
+library("data.table")
+
+# --- IOTC catch data {{{
+
+iotc_catch <- fread("https://iotc.org/sites/default/files/documents/2025/10/IOTC-DATASETS-2025-10-22-NC-SCI_1950-2024.zip")
+
+alb_catch <- iotc_catch[SPECIES_CODE == "ALB" & YEAR %in% 2010:2023]
+
+# NC
+nominal_catch <- alb_catch[, .(catch=sum(CATCH)), by=.(year=YEAR)][order(year)]
+
+# SAVE
+save(nominal_catch, alb_catch, file='data/iotc_alb_catch.rda', compress='xz')
+
+# }}}
 
 library(ss3om)
 

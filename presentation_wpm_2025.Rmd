@@ -147,6 +147,7 @@ $$ HR = \sum_{s=1}^{4} (\sum_{f=1}^{6} (C_{fs} / \sum_{a=0}^{14}(N_as \cdot W_as
 
 - Is the update of OM sufficient?
 - Any potential alternative MP option?
+- Assumed lags: 2 years on data, 2 years on management
 
 ## Acknowledgements
 

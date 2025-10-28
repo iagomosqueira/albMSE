@@ -152,4 +152,5 @@ dev.off()
 render('report_wpm_2025.Rmd', output_dir='report',
   output_file='IOTC-2025-WPM16-11_ALB_MSE.pdf')
 
-render('presentation_wpm_2025.Rmd', output_dir='report', output_file='presentation-IOTC-2025-WPM16-11_ALB_MSE.pdf')
+render('presentation_wpm_2025.Rmd', output_dir='report',
+  output_file='presentation-IOTC-2025-WPM16-11_ALB_MSE.pdf')

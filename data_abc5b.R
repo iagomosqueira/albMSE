@@ -288,7 +288,6 @@ args(projection(om)) <- list(pla=pla, pcbar=pcbar)
 # - BUILD oem
 
 # idx: FLIndexBiomass by season, with sel.pattern by sex
-
 # BUG: mc.output to output FLQuants by fishery, not 'area'
 sp <- expand(divide(out$catch.sel, 5)[[1]], year=2000:2020)
 dimnames(sp)$area <- 'unique'
@@ -298,6 +297,16 @@ NW <- FLIndexBiomass(index=out$index.hat %*% out$index.q,
   sel.pattern=sp,
   catch.wt=wt(biol(om)),
   range=c(startf=0.5, endf=0.5))
+
+# TODO: VERIFY indices and COMPUTE deviances
+ss <- readOutputss3('boot/initial/data/base/')
+ids <- lapply(buildFLIBss330(ss)[1:4], index)
+idd <- Reduce(join, ids)
+
+plot(index(NW), idd)
+plot(index(NW) * index.q(NW), idd)
+
+index.q(NW)
 
 # stk: no units
 oem <- FLoem(observations=list(ALB=list(idx=FLIndices(NW=NW),
@@ -332,12 +341,25 @@ save(om, oem, file='data/om5b.rda', compress='xz')
 # -- UPDATE for new NC {{{
 
 load('data/om5b.rda')
-load('data/alb_2025_nw.rda')
+load('data/iotc_alb_catch.rda')
 
 # GET new NC
 
-ctrl <- as(FLQuants(catch=unitSums(seasonSums(catch(ss25$stk)))[, ac(2010:2023)]), 
-  'fwdControl')
+ctrl <- fwdControl(year=2010:2023, quant="catch",
+  value=nominal_catch[year >=2010, catch])
+
+# TEST: CPUE deviances
+
+# NOTE: index.q no iters?
+dim(index.q(observations(oem)$ALB$idx[[1]]))
+plot(sel.pattern(observations(oem)$ALB$idx[[1]])[,1])
+
+
+# TEST: RECs
+plot(residuals(ss25$srr)) +
+  geom_vline(xintercept=2000, lty=2) +
+  ggtitle("SS3 2025 NW - Recruitment residuals")
+
 
 # - UPDATE using fwdabc.om
 
@@ -347,7 +369,7 @@ nom <- fwdabc.om(om, ctrl, pcbar=args(projection(om))$pcbar,
 )
 
 # Rnom
-plotMetrics(OLD=iter(om, seq(25)), NEW=Rnom)
+plotMetrics(OLD=om, NEW=nom)
 
 # CHECK catch match
 catch(nom)[, ac(2010:2023)]
