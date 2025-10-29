@@ -1871,7 +1871,8 @@ sim <- function(R0=1e6, dep=0.5, h=0.75, M=0.075, selpars, epsr, dms, pctarg,sel
 
   theta <- logit(as.vector(hinit))
 
-  zz <- optim(theta,objfn.init,targv=targv,sela=sela,method=("L-BFGS-B"),control=list(trace=0))
+  zz <- optim(theta,objfn.init,targv=targv,sela=sela,method=("L-BFGS-B"),
+    control=list(trace=0))
 
   hinit <- array(ilogit(zz$par), dim=c(ns, nf))
   resinit <- initpdyn(c(ns, na, nf), srec, psi, M, as.vector(mata),

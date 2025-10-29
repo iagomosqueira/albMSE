@@ -13,6 +13,7 @@
 using namespace Rcpp;
 
 //[[Rcpp::export]]
+
 RcppExport SEXP pdynlfcpue(SEXP dm_,SEXP srec_,SEXP R0_,SEXP hh_,SEXP psi_,SEXP epsr_,SEXP spr0_,SEXP M_,SEXP mata_,SEXP wta_,SEXP sela_,SEXP Ninit_,SEXP Cb_,SEXP pla_,SEXP fref_) 
 {
 

@@ -1,5 +1,6 @@
 # abc5.R - DESC
-# /home/mosquia/Active/Doing/ABC_tuna+iotc/abc_tuna/v2/abc.R
+# alb_MSE/data_abc5c.R
+
 # resample (h,M) from joint distribution
 # resample sigmaR using informative conjugate prior
 
@@ -208,15 +209,18 @@ save.image(file="data/om5b/image_abc5b.rda", compress="xz")
 
 # RUN: 1.2 h
 system.time(
-  mczzz <- mclapply(rep(mcnits,ncore),mcmc5.abc,mc.cores=ncore)
+  mczzz <- mclapply(rep(mcnits,ncore), mcmc5.abc, mc.cores=ncore)
 )
 
 # SAVE runs
 save(mczzz, file="data/om5b/mcmc_abc5b.rda", compress="xz")
 
 # EXTRACT
-# load('data/image/abc5b.rda')
+load('data/om5b/mcmc_abc5b.rda')
+load('data/image/abc5b.rda')
+
 mcpars <- do.call(rbind, lapply(mczzz, '[[', 'pars'))
+
 # BUG: IF error, RE-SOURCE Rcpp files
 mcvars <- get.mcmc2.vars(mcpars)
 
@@ -227,6 +231,7 @@ save(mcpars, mcvars, C, file="data/om5b/mcvars_abc5b.rda", compress="xz")
 
 # --- CREATE om & oem {{{
 
+load('data/base.rda')
 load('data/om5b/mcmc_abc5b.rda')
 load('data/om5b/mcvars_abc5b.rda')
 
@@ -247,14 +252,14 @@ its <- dims(out$m)$iter
 
 # - FLBiol (stock.n, m)
 
-bio <- propagate(window(sbio, start=2000), its)
+bio <- propagate(window(base$bio, start=2000), its)
 
 n(bio) <- out$stock.n
 m(bio) <- out$m
 
 sr(bio) <- predictModel(model=bevholtss3()$model, params=out$srpars)
 
-# spwn, mid Q4
+# spwn, start Q4
 spwn(bio)[,,,4] <- 0
 
 # FIX mat BUG: CHECK readFLSss3 +ss3om 
@@ -289,30 +294,39 @@ args(projection(om)) <- list(pla=pla, pcbar=pcbar)
 
 # idx: FLIndexBiomass by season, with sel.pattern by sex
 # BUG: mc.output to output FLQuants by fishery, not 'area'
+
 sp <- expand(divide(out$catch.sel, 5)[[1]], year=2000:2020)
 dimnames(sp)$area <- 'unique'
 
-NW <- FLIndexBiomass(index=out$index.hat %*% out$index.q,
+nwi <- Reduce(join, lapply(base$ids[1:4], index))
+
+NW <- FLIndexBiomass(index=propagate(nwi[, ac(2000:2020)], its),
   index.q=expand(out$index.q, year=2000:2020),
   sel.pattern=sp,
   catch.wt=wt(biol(om)),
   range=c(startf=0.5, endf=0.5))
 
-# TODO: VERIFY indices and COMPUTE deviances
-ss <- readOutputss3('boot/initial/data/base/')
-ids <- lapply(buildFLIBss330(ss)[1:4], index)
-idd <- Reduce(join, ids)
-
-plot(index(NW), idd)
-plot(index(NW) * index.q(NW), idd)
-
-index.q(NW)
-
 # stk: no units
 oem <- FLoem(observations=list(ALB=list(idx=FLIndices(NW=NW),
   stk=simplify(stock(om)[[1]], 'unit'))), method=sampling.oem)
 
-survey(observations(oem)$ALB$stk, observations(oem)$ALB$idx)
+index(survey(observations(oem)$ALB$stk, observations(oem)$ALB$idx)[[1]])
+
+plot(nwi, 
+index(survey(observations(oem)$ALB$stk, observations(oem)$ALB$idx)[[1]]))
+
+ni <- observations(oem)$ALB$idx[[1]]
+
+index.q(ni)[] <- 1
+
+sel.pattern(ni) <- sel.pattern(ni) %/% apply(sel.pattern(ni), 2:6, max)
+
+index(survey(observations(oem)$ALB$stk, ni))
+
+index(ni) / index(survey(observations(oem)$ALB$stk, ni))
+
+
+
 
 # TODO: verify(oem, om)
 
@@ -339,27 +353,49 @@ save(om, oem, file='data/om5b.rda', compress='xz')
 # }}}
 
 # -- UPDATE for new NC {{{
-
 load('data/om5b.rda')
 load('data/iotc_alb_catch.rda')
 
-# GET new NC
+# SETUP fwd control
 
 ctrl <- fwdControl(year=2010:2023, quant="catch",
   value=nominal_catch[year >=2010, catch])
 
-# TEST: CPUE deviances
+# COMPUTE CPUE deviances
 
-# NOTE: index.q no iters?
-dim(index.q(observations(oem)$ALB$idx[[1]]))
-plot(sel.pattern(observations(oem)$ALB$idx[[1]])[,1])
+load('data/base.rda')
+
+# LOAD original CPUE 
+
+nwh <- index(observations(oem)$ALB$idx[[1]][, ac(2000:2020)])
+
+index(observations(oem)$ALB$idx[[1]][, ac(2000:2020)]) <-
+  Reduce(join, index(base$ids[1:4]))[, ac(2000:2020)]
+
+# COMPUTE ihat
+
+ihat <- unitSums(quantSums(out$stock.n %*% out$catch.sel[,,,,1] *
+  stock.wt(base$stk)[, ac(2000:2020)]))
+
+# CALCULATE deviances
+
+res <- log(nwh / Iest)
+
+lnr <- mean(res)
+
+dev <- res - lnr
+
+
+
+
+
 
 
 # TEST: RECs
+
 plot(residuals(ss25$srr)) +
   geom_vline(xintercept=2000, lty=2) +
   ggtitle("SS3 2025 NW - Recruitment residuals")
-
 
 # - UPDATE using fwdabc.om
 
