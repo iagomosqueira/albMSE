@@ -13,7 +13,7 @@ library("data.table")
 
 iotc_catch <- fread("https://iotc.org/sites/default/files/documents/2025/10/IOTC-DATASETS-2025-10-22-NC-SCI_1950-2024.zip")
 
-alb_catch <- iotc_catch[SPECIES_CODE == "ALB" & YEAR %in% 2010:2023]
+alb_catch <- iotc_catch[SPECIES_CODE == "ALB" & YEAR %in% 2010:2024]
 
 # NC
 nominal_catch <- alb_catch[, .(catch=sum(CATCH)), by=.(year=YEAR)][order(year)]

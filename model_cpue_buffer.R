@@ -23,18 +23,22 @@
 source("config.R")
 
 # LOAD om
-load('data/om5b_updated.rda')
+load('data/om5b/om5b_updated.rda')
 
 # EXTRACT
-om <- iter(om5b$om, seq(100))
-oem <- iter(om5b$oem, seq(100))
+om <- iter(om, seq(100))
+oem <- iter(oem, seq(100))
+
+# STORE in db
+writePerformance(performance(om, statistics[c("SB", "SB0", "SBMSY", "HRMSY", "C")],
+  metrics=mets, years=2000:2024), overwrite=TRUE)
 
 # RESET method JIC
 method(projection(om)) <- fwdabc.om
 
 # SETUP
 
-iy <- 2023
+iy <- 2024
 fy <- 2042
 ty <- seq(iy + 11, iy + 15)
 
@@ -48,15 +52,24 @@ res <- list()
 
 load('data/alb_2025_nw.rda')
 
-performance(window(om, end=2023), statistics=statistics['green'],
+performance(window(om, end=2024), statistics=statistics['green'],
   metrics=mets)[, .(Pgreen=mean(data)), by=year]
 
 # FWD(C=C0) 
 
-ctrl <- fwdControl(year=2024:2045, biol=1, quant='catch', value=0)
+ctrl <- fwdControl(year=2025:2045, biol=1, quant='catch', value=0)
 
 system.time(
 fom_c0 <- fwdabc.om(om, ctrl, pcbar=args(projection(om))$pcbar,
+  pla=args(projection(om))$pla, verbose=TRUE)$om
+)
+
+# FWD(C=C2024) 
+
+ctrl <- fwdControl(year=2025:2045, biol=1, quant='catch', value=catch(om)[,'2024'][[1]])
+
+system.time(
+fom_c2024 <- fwdabc.om(om, ctrl, pcbar=args(projection(om))$pcbar,
   pla=args(projection(om))$pla, verbose=TRUE)$om
 )
 
@@ -70,39 +83,9 @@ fom_cmsy <- fwdabc.om(om, ctrl, pcbar=args(projection(om))$pcbar,
 )
 
 # SAVE
-fom <- list(C2023=fom_c2023, C0=fom_c0, MSY=fom_cmsy)
+fom <- list(C2024=fom_c2024, C0=fom_c0, MSY=fom_cmsy)
 
 save(fom, file="model/om5b_fwd.rda", compress="xz")
-
-# }}}
-
-# --- TEST: 0 mp(shortcut.sa + fixedC.hcr, frq=1) {{{
-
-ctrl <- mpCtrl(list(
-  # EST
-  est = mseCtrl(method=shortcut.sa),
-  # HCR
-  hcr = mseCtrl(method=fixedC.hcr,
-    args=list(ctrg=FLQuant(runif(fy-iy+1, min=15000, max=25000),
-      dimnames=list(year=seq(iy + 1, fy)))))
-))
-
-tes0 <- mp(om, oem, ctrl=ctrl, args=list(iy=iy, fy=fy, frq=1))
-
-# COMPARE catch
-catch(tes0)
-args(ctrl$hcr)
-
-# COMPUTE performance
-performance(tes0, statistics=statistics, metrics=mets,
-  om="abc5b", type="test", run="fixedC")
-
-# DO stock dynamics make sense?
-
-ssb(tes0)
-ssb(tes0) / ssb0(tes0)
-
-unitSums(rec(tes0)[[1]][,,,4])
 
 # }}}
 
@@ -114,17 +97,10 @@ ctrl <- mpCtrl(list(
   est = mseCtrl(method=shortcut.sa),
   # HCR
   hcr = mseCtrl(method=fixedC.hcr,
-    args=list(ctrg=42070))
+    args=list(ctrg=catch(om)[,'2024'][[1]]))
 ))
 
-# RUN
-system.time(
-  tes <- mp(om, oem, ctrl=ctrl, args=list(iy=iy, fy=2026, frq=3))
-)
-
-# EXPLORE ctrg
-exp <- mps(om, oem, ctrl=ctrl, args=list(iy=iy, fy=2026, frq=3),
-  hcr=list(ctrg=seq(20000, 50000, length=5)))
+# TEST <- mp(om, oem, ctrl=ctrl, args=list(iy=iy, fy=2026, frq=3), .DEBUG=FALSE)
 
 # TUNE for P(Kobe=green) = 60%
 system.time(
@@ -135,27 +111,35 @@ tune <- tunebisect(om, oem=oem, control=ctrl, args=list(iy=iy, fy=fy, frq=3),
 
 # COMPUTE performance
 performance(tune) <- performance(tune, statistics=statistics, metrics=mets,
-  om="abc5b", type="fixedC", run="tune_kobe60")
+  type="fixedC", run="tune_kobe60")
 
 # WRITE to table
 writePerformance(performance(tune))
 
 # STORE in results
-res[["om5b_fixedC_tune_kobe60"]] <- tune
+save(tune, file="model/runs/om5b_fixedC_tune_kobe60.rda", compress="xz")
 
 # CHECK Kobe green
 performance(tune)[statistic == 'green' & year %in% ty, mean(data)]
+performance(tune)[statistic == 'green', mean(data), by=year]
 
-# C = 41719
+# GET tuned C = 40 664 t
 args(control(tune)$hcr)$ctrg
 
 # PLOT
-plotMetrics(OM=window(om(tes), end=2023), CtrgK60=window(om(tes), start=2023)) +
+plotMetrics(OM=window(om, end=2023), CtrgK60=window(om(tune), start=2023)) +
   geom_vline(xintercept=ISOdate(c(ty[1], ty[length(ty)]), 1, 1), linetype=3, alpha=0.8)
 
 # }}}
 
+# --- EXPLORE bufferdelta.hcr
+
+# --- EXPLORE bufferhcr
+
 # --- TUNE cpuescore.ind + buffer.hcr(C~zscore) {{{
+
+zscore <- function(x, mean=yearMeans(x), sd=sqrt(yearVars(x)))
+  exp((x %-% mean) %/% sd)
 
 # SET control
 
@@ -165,26 +149,23 @@ ctrl <- mpCtrl(list(
     args=list(index=1, refyrs=c(2000:2005, 2015:2020))),
   # HCR
   hcr = mseCtrl(method=buffer.hcr,
-    args=list(target=42070, lim=-6, bufflow=-5, buffupp=5, sloperatio=0,
-      dlow=0.85, dupp=1.15, metric="zscore", initac=42070))
+    args=list(target=42070, lim=0.10, bufflow=0.8, buffupp=1.2, sloperatio=0.15,
+      dlow=0.85, dupp=1.15, metric="zscore", initac=catch(om)[,'2024'][[1]]))
 ))
 
 # RUN
-tes <- mp(om, oem, ctrl=ctrl,
-  args=list(iy=iy, fy=fy, frq=3))#, .DEBUG=TRUE)
+tes <- mp(om, oem, ctrl=ctrl, args=list(iy=iy, fy=fy, frq=3))#, .DEBUG=TRUE)
 
 # PLOT
 
 plotMetrics(OM=window(om(tes), end=2023), CtrgK60=window(om(tes), start=2023)) +
   geom_vline(xintercept=ISOdate(c(ty[1], ty[length(ty)]), 1, 1), linetype=3, alpha=0.8)
 
-
-
 # TUNE for P(Kobe=green) = 60%
 system.time(
 tune <- tunebisect(om, oem=oem, control=ctrl, args=list(iy=iy, fy=fy, frq=3),
   statistic=statistics["green"], metrics=mets, years=ty,
-  tune=list(target=c(35000, 55000)), prob=0.6, tol=0.01, maxit=12)
+  tune=list(target=c(25000, 55000)), prob=0.6, tol=0.01, maxit=12)
 )
 
 # PLOT
@@ -192,7 +173,10 @@ plotMetrics(OM=window(om, end=2023), K60=window(om(tune), start=2023))
 
 # COMPUTE performance
 performance(tune) <- performance(tune, statistics=statistics, metrics=mets,
-  om="abc5b", type="zscore_NW_buffer_C", run="tune_kobe60")
+  type="zscore_NW_buffer_C", run="tune_kobe60")
+
+performance(tune)[statistic == 'green' & year %in% ty, mean(data)]
+performance(tune)[statistic == 'green', mean(data), by=year]
 
 # WRITE to table
 writePerformance(performance(tune))
@@ -204,11 +188,6 @@ res[["abc5b_zscore_NW_buffer_C_tune_kobe60"]] <- tune
 args(control(tune, 'hcr'))$target
 
 # }}}
-
-# TODO: ADD om perfomance to table
-
-# SAVE
-save(res, file="model_cpue_buffer.rda", compress="xz")
 
 # --- DOES NOT TUNE -- TUNE cpuescore.ind + bufferdelta.hcr(zscore) {{{
 

@@ -199,7 +199,7 @@ thin <- 100
 mcnits <- floor(nits/ncore)
 
 # SAVE image
-save.image(file="data/om5b/image_abc5b.rda", compress="xz")
+save.image(file="data/om6b/image_abc6b.rda", compress="xz")
 
 # RUN: 1.2 h
 system.time(
@@ -207,11 +207,11 @@ system.time(
 )
 
 # SAVE runs
-save(mczzz, file="data/om5b/mcmc_abc5b.rda", compress="xz")
+save(mczzz, file="data/om6b/mcmc_abc6b.rda", compress="xz")
 
 # EXTRACT
-load('data/om5b/mcmc_abc5b.rda')
-load('data/om5b/image_abc5b.rda')
+load('data/om6b/mcmc_abc6b.rda')
+load('data/om6b/image_abc6b.rda')
 
 mcpars <- do.call(rbind, lapply(mczzz, '[[', 'pars'))
 
@@ -222,7 +222,7 @@ sourceCpp("utilities/pdyn_lfcpue.cpp")
 mcvars <- get.mcmc2.vars(mcpars)
 
 # SAVE output
-save(mcpars, mcvars, C, file="data/om5b/mcvars_abc5b.rda", compress="xz")
+save(mcpars, mcvars, C, file="data/om6b/mcvars_abc6b.rda", compress="xz")
 
 # TEST:
 devs_cpue <- lapply(mcvars, function(x)
@@ -250,8 +250,8 @@ I[,,1] /
 # --- CREATE om & oem {{{
 
 load('data/base.rda')
-load('data/om5b/mcmc_abc5b.rda')
-load('data/om5b/mcvars_abc5b.rda')
+load('data/om6b/mcmc_abc6b.rda')
+load('data/om6b/mcvars_abc6b.rda')
 
 # BUG iter 13
 mcvars[[13]] <- mcvars[[113]]
@@ -267,7 +267,7 @@ system.time(
   out <- mc.output(mcvars, C)
 )
 
-save(out, file="data/om5b/mcout_abc5b.rda", compress="xz")
+save(out, file="data/om6b/mcout_abc6b.rda", compress="xz")
 
 its <- dims(out$m)$iter
 
@@ -303,7 +303,7 @@ fis <- FLFisheries(lapply(cas, function(x)
 names(fis) <- c(paste0("LL", 1:4), "PS", "Other")
 
 om <- FLombf(biols=FLBiols(ALB=bio), fisheries=fis, refpts=FLPars(ALB=out$refpts),
-  name="om5b")
+  name="om6b")
 
 method(projection(om)) <- fwdabc.om
 args(projection(om)) <- list(pla=pla, pcbar=pcbar)
@@ -332,14 +332,14 @@ oem <- FLoem(observations=list(ALB=list(idx=FLIndices(NW=NW),
 
 # SAVE
 
-save(om, oem, file='data/om5b/om5b-raw.rda', compress='xz')
+save(om, oem, file='data/om6b/om6b-raw.rda', compress='xz')
 
 # }}}
 
 # --- EXTEND {{{
 
-load('data/om5b/om5b-raw.rda')
-load('data/om5b/mcout_abc5b.rda')
+load('data/om6b/om6b-raw.rda')
+load('data/om6b/mcout_abc6b.rda')
 
 om <- fwdWindow(om, end=2045)
 
@@ -350,13 +350,13 @@ deviances(om)[, ac(2021:2045),,4] <- rlnormar1(n=dims(om)$it, meanlog=0,
 oem <- fwdWindow(oem, end=2045)
 
 # SAVE
-save(om, oem, file='data/om5b/om5b_extended.rda', compress='xz')
+save(om, oem, file='data/om6b/om6b_extended.rda', compress='xz')
 
 # }}}
 
 # -- UPDATE for new NC {{{
 
-load('data/om5b/om5b_extended.rda')
+load('data/om6b/om6b_extended.rda')
 load('data/iotc_alb_catch.rda')
 
 # SETUP fwd control
@@ -424,6 +424,10 @@ observations(oem)$ALB$stk[, ac(2010:2024)] <- stock(nom)[[1]][, ac(2010:2024)]
 om <- hind_om
 
 # SAVE
-save(om, oem, file="data/om5b/om5b_updated.rda", compress="xz")
+save(om, oem, file="data/om6b/om6b_updated.rda", compress="xz")
 
 # }}}
+
+# STORE in db
+writePerformance(performance(om, statistics[c("SB", "SB0", "SBMSY", "HRMSY", "C")],
+  metrics=mets, years=2000:2024), overwrite=TRUE)

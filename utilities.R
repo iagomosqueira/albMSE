@@ -1,5 +1,5 @@
 # utilities.R - DESC
-# /home/mosquia/Active/ABC_tuna+iotc/abc_tuna/v2/utilities.R
+# albMSE/utilities.R
 
 # Copyright (c) WUR, 2023.
 # Author: Iago MOSQUEIRA (WMR) <iago.mosqueira@wur.nl>
@@ -19,27 +19,39 @@ mc.output <- function(x, C) {
   # - FLQuant [a, y, u, s, 1, i]
 
   # stock.n - N (y, a, s, u)
+  message("stock.n")
+
   out$stock.n <- Reduce(combine, lapply(x, function(i)
    FLQuant(aperm(i$N, c(2,1,4,3)), dimnames=dmns, units='1000') / 1000
   ))
 
   # m - M
+  message("m")
+
   out$m <- expand(FLQuant(unlist(lapply(x, '[[', 'M')),
     quant='age',dim=c(1,1,1,1,1,nits)),
     age=0:14, year=2000:2020, season=1:4, unit=c('F', 'M'))
 
-  # index.hat - Ihat
-  out$index.hat <- Reduce(combine, lapply(x, function(i)
-   FLQuant(c(i$Ihat), dimnames=list(age='all', year=2000:2020, season=1:4))
-  ))
+    # hr - H [y, s, f]
+  message("hr")
 
-  # hr - H [y, s, f]
   out$hr <- FLQuant(unlist(lapply(x, '[[', 'H')),
     dimnames=list(age='all', year=2000:2020, season=1:4, area=1:6,
     iter=seq(nits)), units='hr')
   out$hrs <- areaSums(out$hr)
+  
+  # deviances - epsrx (y)
+  message("deviances")
+
+  out$deviances <- Reduce(combine, lapply(x, function(i)
+   FLQuant(c(1, exp(i$epsrx)), dimnames=list(age=0, year=2000:2020, season=1:4,
+      unit=c('F', 'M')), units='')))
+
+  out$deviances[,,,1:3] <- NA
 
   # catch.sel - sela (a, s, u, f)
+  message("catch.sel")
+
   out$catch.sel <- Reduce(combine, lapply(x, function(i) {
     # a, u, s, f
     res <- FLQuant(c(aperm(i$sela, c(1,3,2,4))), dimnames=list(age=0:14,
@@ -50,27 +62,42 @@ mc.output <- function(x, C) {
     return(res)
     }
   ))
-
-  # deviances - epsrx (y)
-  out$deviances <- Reduce(combine, lapply(x, function(i)
-   FLQuant(c(1, exp(i$epsrx)), dimnames=list(age=0, year=2000:2020, season=1:4,
-      unit=c('F', 'M')), units='')))
-
-  out$deviances[,,,1:3] <- NA
-
-  # HR @age[a,y,s,f,u]
-  out$hra <- expand(out$hr, age=0:14, unit=c('F', 'M'),
-    fill=TRUE) %*% out$catch.sel
-
+  
   # catches (y, s, f)
+  message("catch.n")
   caf <- FLQuant(dimnames=list(year=2018:2020, season=1:4, area=1:6))
   caf[] <- C[19:21,,]
   out$cap <- caf %/% areaSums(caf)
  
+  # HR @age[a,y,s,f,u]
+  message("hra")
+
+  out$hra <- expand(out$hr, age=0:14, unit=c('F', 'M'),
+    fill=TRUE) %*% out$catch.sel
+
   # catch.n
   out$catch.n <- out$stock.n %*% out$hra
+  
+  # index.hat - Ihat
+  message("index.hat")
+
+  out$index.hat <- Reduce(combine, lapply(x, function(i)
+    FLQuant(c(i$Ihat), dimnames=list(age='all', year=2000:2020, season=1:4))
+  ))
+
+  # index.q - lnq
+  message("index.q")
+
+  lnq <- unlist(lapply(x, '[[', 'lnq'))
+  out$index.q <- expand(FLQuant(exp(lnq), dimnames=list(age='all', season=1:4,
+    iter=seq(nits))), year=2000:2020, fill=TRUE)
+
+  # index
+  out$index <- exp(log(out$index.hat) + log(out$index.q))
 
   # - FLPar
+
+  message("refpts")
 
   # SB0
   SB0 <- unlist(lapply(x, '[[', 'B0'))
@@ -110,6 +137,8 @@ mc.output <- function(x, C) {
 
   # - FLQuant
 
+  message("metrics")
+
   # SSB
   out$ssb <- Reduce(combine, lapply(x, function(i)
    FLQuant(i$SSB, dimnames=list(age='all', year=2000:2020))
@@ -125,13 +154,6 @@ mc.output <- function(x, C) {
    FLQuant(i$dep, dimnames=list(age='all', year=2000:2020))
   ))
 
-  # index.q
-  lnq <- unlist(lapply(x, '[[', 'lnq'))
-  out$index.q <- FLQuant(exp(lnq), dimnames=list(age='all', season=1:4,
-    iter=seq(length(rho))))
-
-  # stock.n, m, catch.n, catch.sel, ssb, dep, index.q, srpars, refpts,
-  # hr, rec, index.hat, hra
   return(out)
 }
 # }}}
@@ -1730,10 +1752,10 @@ mcmc5.abc <- function(nits) {
 
       if(seasonq) {
 
-        resq <- log(I[,,fcpue]/xx$I)
-        lnq <- apply(resq,2,mean)
-        resq <- t(apply(resq,1,function(x,lnq){x <- x-lnq},lnq))
- 
+        resq <- log(I[,,fcpue] / xx$I)
+        lnq <- apply(resq, 2, mean)
+        resq <- t(apply(resq, 1, function(x, nlnq){x <- x - nlnq}, lnq))
+
       } else {
 
         resq <- log(I[,,fcpue]/xx$I)
@@ -1813,6 +1835,10 @@ mcmc5.abc <- function(nits) {
 
       }
       if(accpt) {
+
+        # DEBUG: resq too high
+        if(any(exp(resq) > 4))
+          browser()
 
         parvecold <- parvecnew
         dtotold <- dtotnew
@@ -2100,7 +2126,7 @@ plot.mcmc.vars <- function(varlist,ptype) {
 }
 # }}}
 
-# {{{ plot.mcmc.cpue
+# plot.mcmc.cpue {{{
 plot.mcmc.cpue <- function(varlist) {
 
   nnits <- length(varlist)
@@ -2173,7 +2199,7 @@ plot.mcmc.cpue <- function(varlist) {
 }
 # }}}
 
-# {{{ plot.mcmc.lf
+# plot.mcmc.lf {{{
 plot.mcmc.lf <- function(varlist) {
 
   nnits <- length(varlist)
@@ -2190,7 +2216,7 @@ plot.mcmc.lf <- function(varlist) {
 }
 # }}}
 
-# {{{ plot.mcmc.sel 
+# plot.mcmc.sel  {{{
 plot.mcmc.sel <- function(mcpars) {
 
   nnits <- dim(mcpars)[1]
@@ -2473,31 +2499,31 @@ cpuescore.ind <- function(stk, idx, index = 1, refyrs = NULL, ayears=3,
 
 # relhr: HR / HR_MSY
 relhr <- function(x) {
-  seasonMeans(hr(x) / refpts(x)$HRMSY)
+  seasonMeans(hr(x) / setunits(refpts(x)$HRMSY, 'hr'))
 }
 
 # ssb: annual female spawning stock biomass in season 4
 setMethod('ssb', signature(object="FLombf"),
   function(object) {
-    return(quantSums(n(biol(object))[,,'F',4] * wt(biol(object))[,,'F',4] *
-      mat(biol(object))[,,'F',4]))
+    return(setunits(quantSums(n(biol(object))[,,'F',4] * wt(biol(object))[,,'F',4] *
+      mat(biol(object))[,,'F',4]), 't'))
   })
 
 # tsb: annual total stock biomass in season 4
 setMethod('tsb', signature(object="FLombf"),
   function(object) {
-    return(unitSums(quantSums(n(biol(object))[,,,1] * wt(biol(object))[,,,4])))
+    return(setunits(unitSums(quantSums(n(biol(object))[,,,1] * wt(biol(object))[,,,4])), 't'))
   })
 
 # catch: annual total catch in weight
 setMethod('catch', signature(object="FLombf"),
   function(object) {
-    unitSums(seasonSums(Reduce('+', catch(fisheries(object)))))
+    return(setunits(unitSums(seasonSums(Reduce('+', catch(fisheries(object))))), 't'))
 })
 
 setMethod('msy', signature(x="FLombf"),
   function(x) {
-    refpts(x)$MSY[,1,]
+    setunits(refpts(x)$MSY[,1,], 't')
 })
 
 setMethod('fbar', signature(object="FLombf"),
@@ -2505,7 +2531,8 @@ setMethod('fbar', signature(object="FLombf"),
     relhr(object)
 })
 
-mets <- list(SB=ssb, C=catch, HR=relhr, R=function(x) unitSums(rec(x)[[1]][,,,4]))
+mets <- list(SB=ssb, C=catch, HR=relhr,
+  R=function(x) setunits(unitSums(rec(x)[[1]][,,,4]), '1000'))
 
 setMethod('depletion', signature(x='FLombf'),
   function(x)

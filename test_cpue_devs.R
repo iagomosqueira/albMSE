@@ -38,7 +38,7 @@ range(iha / ies)
 plot(FLQuants(EST=iha, OBS=nwi))
 plot(FLQuants(EST=iter(iha, 1), OBS=nwi))
 
-# NOTE: HOW to generate index in original scale?
+# WARN: HOW to generate index in original scale?
 
 
 # -- COMPUTE deviances as in mcmc
