@@ -2727,7 +2727,7 @@ timeMeans <- function(x)
 zscore <- function(x, mean=yearMeans(x), sd=sqrt(yearVars(x)))
   (x %-% mean) %/% sd
 
-bufferdelta.hcr <- function(stk, ind, target=0, metric='zscore',
+bufferdelta.hcr <- function(stk, ind, target=1, metric='zscore',
   width=1, bufflow=target - width, buffupp=target + width,
   lim=target - 2 * width, sloperatio=0.20, initac=NULL,
   dupp=NULL, dlow=NULL, all=TRUE, ..., args, tracking) {
@@ -2950,4 +2950,46 @@ plotMetrics <- function(..., maxhr=5) {
     scale_y_facet(qname == 'H/H[MSY]', limits = c(0, maxhr))
 }
 
+# }}}
+
+# cpue.ind {{{
+
+cpue.ind <- function(stk, idx, index=1, nyears=5, mean=yearMeans(index(idx)[[index]]),
+  sd=sqrt(yearVars(index(idx)[[index]])), args, tracking) {
+
+  # ARGS
+  ay <- args$ay
+  dlag <- args$data_lag
+  dyrs <- ac(seq(ay - dlag - (nyears - 1) , length=nyears))
+
+  # SUBSET dyrs
+  met <- biomass(idx[[index]])[1, dyrs]
+
+  # 1. AVERAGE index
+  imean <- expand(seasonMeans(yearMeans(tail(met, nyears))), year=ay - dlag)
+
+  # 2. WEIGHTED average index of last nyears: 0.50 for last year, 0.50 others
+  ywts <- c(0.50 * seq(1, nyears - 1) / sum(seq(1, nyears - 1)), 0.50)
+  wmean <- expand(seasonMeans(yearSums(tail(met, nyears) * ywts)), year=ay - dlag)
+
+  # 3. SLOPE by iter
+  dat <- data.table(as.data.frame(met))
+  slope <- dat[, .(data=coef(lm(log(data + 1e-22) ~ year))[2]), by=iter]
+  slope <- FLQuant(slope$data, dimnames=dimnames(imean)[-4], units="")
+
+  # 4. EXP zscore
+  score <- seasonMeans(exp(zscore(met, mean=FLQuant(mean), sd=FLQuant(sd))))
+  
+  # OUTPUT
+  ind <- FLQuants(index=met, mean=imean, wmean=wmean, slope=slope, zscore=score)
+
+  # TRACK
+  track(tracking, "index.ind", ac(ay)) <- met[, ac(ay - dlag)]
+  track(tracking, "mean.ind", ac(ay)) <- mean
+  track(tracking, "wmean.ind", ac(ay)) <- wmean
+  track(tracking, "slope.ind", ac(ay)) <- slope
+
+  return(list(stk=stk, ind=ind, tracking=tracking, cpue=met))
+
+}
 # }}}

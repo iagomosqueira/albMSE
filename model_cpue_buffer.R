@@ -196,23 +196,27 @@ args(control(tune, 'hcr'))$target
 
 # SET control
 
+ref <- index(observations(oem)$ALB$idx[[1]])[, ac(c(2000:2005, 2015:2020))]
+
 ctrl <- mpCtrl(list(
   # EST
-  est = mseCtrl(method=cpuescore.ind,
-    args=list(index=1, refyrs=c(2000:2005, 2015:2020))),
+  est = mseCtrl(method=cpue.ind,
+  #  args=list(index=1, mean=yearMeans(ref), sd=sqrt(yearVars(ref)))),
+    args=list(index=1)),
   # HCR
   hcr = mseCtrl(method=bufferdelta.hcr,
-    args=list(target=0, width=1, buffupp=1.5, sloperatio=0.15, dlow=0.85, dupp=1.15,
+    args=list(bufflow=0.5, buffupp=1.5, sloperatio=0.15, dlow=0.85, dupp=1.15,
       metric="zscore", initac=42000))
 ))
 
 # RUN
-tes <- mp(om, oem, ctrl=ctrl, args=list(iy=iy, fy=fy, frq=3))#, .DEBUG=TRUE)
+tes <- mp(om, oem, ctrl=ctrl, args=list(iy=iy, fy=2032, frq=3))#, .DEBUG=TRUE)
 
+# EXPLORE
 exp <- mps(om, oem, ctrl=ctrl, args=list(iy=iy, fy=fy, frq=3),
   hcr=list(buffupp=seq(-0.5, 3, length=5)))
 
-performance(tune[[1]], statistics=statistics['green'], metrics=mets)[year %in% ty, mean(data)]
+performance(tes, statistics=statistics['green'], metrics=mets)[year %in% ty, mean(data)]
 
 # PLOT
 plotMetrics(OM=window(om, end=2023),
@@ -223,7 +227,7 @@ plotMetrics(OM=window(om, end=2023),
 system.time(
 tune <- tunebisect(om, oem=oem, control=ctrl, args=list(iy=iy, fy=fy, frq=3),
   statistic=statistics["green"], metrics=mets, years=ty,
-  tune=list(buffupp=c(1, 4)), prob=0.6, tol=0.01, maxit=12)
+  tune=list(width=c(1, 4)), prob=0.6, tol=0.01, maxit=12)
 )
 
 # TEST:
