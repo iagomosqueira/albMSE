@@ -167,30 +167,18 @@ performance(test, statistics=statistics['green'], metrics=mets)[year %in% ty, me
 system.time(
 tune <- tunebisect(om, oem=oem, control=ctrl, args=list(iy=iy, fy=fy, frq=3),
   statistic=statistics["green"], metrics=mets, years=ty,
-  tune=list(width=c(1, 4)), prob=0.6, tol=0.01, maxit=12)
+  tune=list(width=c(0.05, 0.3)), prob=0.6, tol=0.01, maxit=12)
 )
-
-# TEST:
-plotMetrics(OM=window(om, end=2023),
-  A=window(om(tune[[1]]), start=2023),
-  B=window(om(tune[[2]]), start=2023)
-)
-
-performance(tune[[1]], statistics=statistics['green'], metrics=mets)[year %in% ty, mean(data)]
-
-performance(tune[[2]], statistics=statistics['green'], metrics=mets)[year %in% ty, mean(data)]
 
 # PLOT
-plotMetrics(OM=window(om, end=2023),
-  K60=window(om(tune[[1]]), start=2023))
+plotMetrics(OM=window(om, end=2024), TEST=window(om(tune), start=2024))
+
+# KOBE performance
+performance(tune, statistics=statistics['green'], metrics=mets)[year %in% ty, mean(data)]
 
 # COMPUTE performance
 performance(tune) <- performance(tune, statistics=statistics, metrics=mets,
   om="abc5b", type="tune", run="kobe60")
-
-# CHECK P(Kobe=green) in ty
-
-performance(tune)[statistic == 'green' & year %in% ty, mean(data)]
 
 # }}}
 
