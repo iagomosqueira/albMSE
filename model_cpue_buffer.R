@@ -132,63 +132,6 @@ plotMetrics(OM=window(om, end=2023), CtrgK60=window(om(tune), start=2023)) +
 
 # }}}
 
-# --- EXPLORE bufferdelta.hcr
-
-# --- EXPLORE bufferhcr
-
-# --- TUNE cpuescore.ind + buffer.hcr(C~zscore) {{{
-
-zscore <- function(x, mean=yearMeans(x), sd=sqrt(yearVars(x)))
-  exp((x %-% mean) %/% sd)
-
-# SET control
-
-ctrl <- mpCtrl(list(
-  # EST
-  est = mseCtrl(method=cpuescore.ind,
-    args=list(index=1, refyrs=c(2000:2005, 2015:2020))),
-  # HCR
-  hcr = mseCtrl(method=buffer.hcr,
-    args=list(target=42070, lim=0.10, bufflow=0.8, buffupp=1.2, sloperatio=0.15,
-      dlow=0.85, dupp=1.15, metric="zscore", initac=catch(om)[,'2024'][[1]]))
-))
-
-# RUN
-tes <- mp(om, oem, ctrl=ctrl, args=list(iy=iy, fy=fy, frq=3))#, .DEBUG=TRUE)
-
-# PLOT
-
-plotMetrics(OM=window(om(tes), end=2023), CtrgK60=window(om(tes), start=2023)) +
-  geom_vline(xintercept=ISOdate(c(ty[1], ty[length(ty)]), 1, 1), linetype=3, alpha=0.8)
-
-# TUNE for P(Kobe=green) = 60%
-system.time(
-tune <- tunebisect(om, oem=oem, control=ctrl, args=list(iy=iy, fy=fy, frq=3),
-  statistic=statistics["green"], metrics=mets, years=ty,
-  tune=list(target=c(25000, 55000)), prob=0.6, tol=0.01, maxit=12)
-)
-
-# PLOT
-plotMetrics(OM=window(om, end=2023), K60=window(om(tune), start=2023))
-
-# COMPUTE performance
-performance(tune) <- performance(tune, statistics=statistics, metrics=mets,
-  type="zscore_NW_buffer_C", run="tune_kobe60")
-
-performance(tune)[statistic == 'green' & year %in% ty, mean(data)]
-performance(tune)[statistic == 'green', mean(data), by=year]
-
-# WRITE to table
-writePerformance(performance(tune))
-
-# STORE in results
-res[["abc5b_zscore_NW_buffer_C_tune_kobe60"]] <- tune
-
-# GET value of tuned argument
-args(control(tune, 'hcr'))$target
-
-# }}}
-
 # --- DOES NOT TUNE -- TUNE cpuescore.ind + bufferdelta.hcr(zscore) {{{
 
 # FIX width and tune for buffupp
@@ -249,5 +192,58 @@ performance(tune) <- performance(tune, statistics=statistics, metrics=mets,
 # CHECK P(Kobe=green) in ty
 
 performance(tune)[statistic == 'green' & year %in% ty, mean(data)]
+
+# }}}
+
+# --- TUNE cpuescore.ind + buffer.hcr(C~zscore) {{{
+
+zscore <- function(x, mean=yearMeans(x), sd=sqrt(yearVars(x)))
+  exp((x %-% mean) %/% sd)
+
+# SET control
+
+ctrl <- mpCtrl(list(
+  # EST
+  est = mseCtrl(method=cpuescore.ind,
+    args=list(index=1, refyrs=c(2000:2005, 2015:2020))),
+  # HCR
+  hcr = mseCtrl(method=buffer.hcr,
+    args=list(target=42070, lim=0.10, bufflow=0.8, buffupp=1.2, sloperatio=0.15,
+      dlow=0.85, dupp=1.15, metric="zscore", initac=catch(om)[,'2024'][[1]]))
+))
+
+# RUN
+tes <- mp(om, oem, ctrl=ctrl, args=list(iy=iy, fy=fy, frq=3))#, .DEBUG=TRUE)
+
+# PLOT
+
+plotMetrics(OM=window(om(tes), end=2023), CtrgK60=window(om(tes), start=2023)) +
+  geom_vline(xintercept=ISOdate(c(ty[1], ty[length(ty)]), 1, 1), linetype=3, alpha=0.8)
+
+# TUNE for P(Kobe=green) = 60%
+system.time(
+tune <- tunebisect(om, oem=oem, control=ctrl, args=list(iy=iy, fy=fy, frq=3),
+  statistic=statistics["green"], metrics=mets, years=ty,
+  tune=list(target=c(25000, 55000)), prob=0.6, tol=0.01, maxit=12)
+)
+
+# PLOT
+plotMetrics(OM=window(om, end=2023), K60=window(om(tune), start=2023))
+
+# COMPUTE performance
+performance(tune) <- performance(tune, statistics=statistics, metrics=mets,
+  type="zscore_NW_buffer_C", run="tune_kobe60")
+
+performance(tune)[statistic == 'green' & year %in% ty, mean(data)]
+performance(tune)[statistic == 'green', mean(data), by=year]
+
+# WRITE to table
+writePerformance(performance(tune))
+
+# STORE in results
+res[["abc5b_zscore_NW_buffer_C_tune_kobe60"]] <- tune
+
+# GET value of tuned argument
+args(control(tune, 'hcr'))$target
 
 # }}}
