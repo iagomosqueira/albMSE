@@ -139,7 +139,9 @@ plotMetrics(OM=window(om, end=2023), CtrgK60=window(om(tune), start=2023)) +
 
 # SET control
 
-ref <- index(observations(oem)$ALB$idx[[1]])[, ac(c(2000:2005, 2015:2020))]
+ref <- index(observations(oem)$ALB$idx[[1]])[, ac(c(2015:2020))]
+
+timeMeans(ref) # 0.49
 
 ctrl <- mpCtrl(list(
   # EST
@@ -147,21 +149,18 @@ ctrl <- mpCtrl(list(
     args=list(index=1, mean=yearMeans(ref), sd=sqrt(yearVars(ref)))),
   # HCR
   hcr = mseCtrl(method=bufferdelta.hcr,
-    args=list(bufflow=0.5, buffupp=1.5, sloperatio=0.15, dlow=0.85, dupp=1.15,
+    args=list(target=0.5, width=0.3, lim=0.15, sloperatio=0.15, dlow=0.85, dupp=1.15,
       metric="zscore", initac=42000))
 ))
 
-# TEST <- mp(om, oem, ctrl=ctrl, args=list(iy=iy, fy=2032, frq=3), .DEBUG=TRUE)
-
-# EXPLORE
-exp <- mps(om, oem, ctrl=ctrl, args=list(iy=iy, fy=fy, frq=3),
-  hcr=list(buffupp=seq(-0.5, 3, length=5)))
-
-performance(tes, statistics=statistics['green'], metrics=mets)[year %in% ty, mean(data)]
+# TEST run
+test <- mp(om, oem, ctrl=ctrl, args=list(iy=iy, fy=fy, frq=3), .DEBUG=FALSE)
 
 # PLOT
-plotMetrics(OM=window(om, end=2023),
-  TES=window(om(tes), start=2023))
+plotMetrics(OM=window(om, end=2024), TEST=window(om(test), start=2024))
+
+# KOBE performance
+performance(test, statistics=statistics['green'], metrics=mets)[year %in% ty, mean(data)]
 
 # TUNE for P(Kobe=green) = 60%
 
