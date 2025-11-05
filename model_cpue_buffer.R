@@ -201,16 +201,14 @@ ref <- index(observations(oem)$ALB$idx[[1]])[, ac(c(2000:2005, 2015:2020))]
 ctrl <- mpCtrl(list(
   # EST
   est = mseCtrl(method=cpue.ind,
-  #  args=list(index=1, mean=yearMeans(ref), sd=sqrt(yearVars(ref)))),
-    args=list(index=1)),
+    args=list(index=1, mean=yearMeans(ref), sd=sqrt(yearVars(ref)))),
   # HCR
   hcr = mseCtrl(method=bufferdelta.hcr,
     args=list(bufflow=0.5, buffupp=1.5, sloperatio=0.15, dlow=0.85, dupp=1.15,
       metric="zscore", initac=42000))
 ))
 
-# RUN
-tes <- mp(om, oem, ctrl=ctrl, args=list(iy=iy, fy=2032, frq=3))#, .DEBUG=TRUE)
+# TEST <- mp(om, oem, ctrl=ctrl, args=list(iy=iy, fy=2032, frq=3), .DEBUG=TRUE)
 
 # EXPLORE
 exp <- mps(om, oem, ctrl=ctrl, args=list(iy=iy, fy=fy, frq=3),
