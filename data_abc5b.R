@@ -427,3 +427,59 @@ om <- hind_om
 save(om, oem, file="data/om5b/om5b_updated.rda", compress="xz")
 
 # }}}
+
+# --- SAVE 100 iter objects {{{
+
+# LOAD om
+load('data/om5b/om5b_updated.rda')
+
+# EXTRACT
+om <- iter(om, seq(100))
+oem <- iter(oem, seq(100))
+
+# SAVE as qs2 (faster)
+qs_savem(om, oem, file='model/om5b.qs2')
+
+# }}}
+
+# PROJECTIONS {{{
+
+qs_readm(om, oem, file='model/om5b.qs2')
+
+performance(window(om, end=2024), statistics=statistics['green'],
+  metrics=mets)[, .(Pgreen=mean(data)), by=year]
+
+# FWD(C=C0) 
+
+ctrl <- fwdControl(year=2025:2045, biol=1, quant='catch', value=0)
+
+system.time(
+fom_c0 <- fwdabc.om(om, ctrl, pcbar=args(projection(om))$pcbar,
+  pla=args(projection(om))$pla, verbose=TRUE)$om
+)
+
+# FWD(C=C2024) 
+
+ctrl <- fwdControl(year=2025:2045, biol=1, quant='catch', value=catch(om)[,'2024'][[1]])
+
+system.time(
+fom_c2024 <- fwdabc.om(om, ctrl, pcbar=args(projection(om))$pcbar,
+  pla=args(projection(om))$pla, verbose=TRUE)$om
+)
+
+# FWD(C=MSY2025) 
+
+ctrl <- fwdControl(year=2024:2045, biol=1, quant='catch', value=ss25$rps$MSY)
+
+system.time(
+fom_cmsy <- fwdabc.om(om, ctrl, pcbar=args(projection(om))$pcbar,
+  pla=args(projection(om))$pla, verbose=TRUE)$om
+)
+
+# SAVE
+fom <- list(C2024=fom_c2024, C0=fom_c0, MSY=fom_cmsy)
+
+save(fom, file="data/om5b/om5b_fwd.rda", compress="xz")
+
+# }}}
+
