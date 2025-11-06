@@ -2568,19 +2568,22 @@ setMethod('msy', signature(x="FLombf"),
 statistics <- list(
   # SB
   SB = list(~yearMeans(SB), name = "SB",
-    desc = "Mean spawner biomass"),
+    desc = "Spawner biomass"),
   # SB0
   SB0 = list(~yearMeans(SB/SB0), name = "SB/SB[0]",
-    desc = "Mean spawner biomass relative to unfished"),
+    desc = "Spawner biomass relative to unfished"),
   # minSB0
   minSB0 = list(~apply(SB/SB0, c(1, 3:6), min), name = "min(SB/SB[0])",
     desc = "Minimum spawner biomass relative to unfished"),
   # SBMSY
   SBMSY = list(~yearMeans(SB/SBMSY), name = "SB/SB[MSY]",
-    desc = "Mean spawnwer biomass relative to SBMSY"),
+    desc = "Spawnwer biomass relative to SBMSY"),
+  # R
+  R = list(~R, name = "R",
+    desc = "Recruitment"),
   # HRMSY
   HRMSY = list(~yearMeans(HR), name = "HR",
-    desc = "Mean annual relative harvest rate"),
+    desc = "Annual relative harvest rate"),
   # green
   green = list(~yearSums(FLQuant((SB / SBMSY) > 1 & HR < 1)) / dim(SB)[2],
     name = "P(Green)", desc = "Probability of being in Kobe green quadrant"),
@@ -2600,12 +2603,12 @@ statistics <- list(
   PSBlim = list(~yearMeans((SB / (SB0 * 0.10)) > 1), name = "P(SB>SB[limit])", 
     desc = "Probability that spawner biomass is above 10% SB0"),
   # C
-  C = list(~yearMeans(C), name = "mean(C)", desc = "Mean catch over years"),
+  C = list(~yearMeans(C), name = "mean(C)", desc = "Total catch"),
   # C/MSY
-  CMSY = list(~yearMeans(C/MSY), name = "C/MSY", desc = "Mean proportion of MSY"),
+  CMSY = list(~yearMeans(C/MSY), name = "C/MSY", desc = "Proportion of MSY"),
   # AAV
   AAVC = list(~yearMeans(abs(C[, -1] - C[, -dim(C)[2]]) / C[, -dim(C)[2]]),
-    name = "AAV(C)", desc = "Average annual variability in catch"),
+    name = "AAV(C)", desc = "Annual variability in catch"),
   # IACC
   IACC = list(~100 * yearSums(abs(C[, -1] - C[, -dim(C)[2]])) / 
     yearSums(C[, -dim(C)[2]]),
@@ -2729,7 +2732,7 @@ zscore <- function(x, mean=yearMeans(x), sd=sqrt(yearVars(x)))
 
 bufferdelta.hcr <- function(stk, ind, target=1, metric='zscore',
   width=1, bufflow=target - width, buffupp=target + width,
-  lim=target - 2 * width, sloperatio=0.20, initac=NULL,
+  lim=target - 2 * width, sloperatio=0.15, initac=NULL,
   dupp=NULL, dlow=NULL, all=TRUE, ..., args, tracking) {
 
   # EXTRACT args
@@ -2950,6 +2953,35 @@ plotMetrics <- function(..., maxhr=5) {
     scale_y_facet(qname == 'H/H[MSY]', limits = c(0, maxhr))
 }
 
+setMethod("plot", signature(x="FLombf", y="missing"),
+  function(x, ...) {
+
+    argx <- setNames(list(window(x, end=2024)),
+          nm=ifelse(name(x) == character(1), "OM", name(x)))
+
+    if(length(list(...)) == 0) {
+
+      do.call(plotMetrics, argx)
+
+    } else {
+
+      args <- lapply(list(...), function(i) window(om(i), start=2024))
+
+      do.call(plotMetrics, c(argx, args))
+  }
+})  
+
+setMethod("plot", signature(x="FLombf", y="FLmses"),
+  function(x, y) {
+
+    argx <- setNames(list(window(x, end=2024)),
+          nm=ifelse(name(x) == character(1), "OM", name(x)))
+
+    argy <- lapply(y, function(i) window(om(i), start=2024))
+
+    do.call(plotMetrics, c(argx, argy))
+  }
+)  
 # }}}
 
 # cpue.ind {{{

@@ -1,29 +1,147 @@
 ---
-title: 
-author: Iago MOSQUEIRA <iago.mosqueira@wur.nl>
-date: "`r format(Sys.time(), '%d %B, %Y')`"
+title: "Management Strategy Evaluation"
+subtitle: "Work reference (contract, meeting, ...)"
+author:
+  - Iago Mosqueira (WMR)^[Institution, Address, Country. <email>]
+date: "`r Sys.Date()`"
 documentclass: article
 header-includes: 
-  - \usepackage{float}
-  - \usepackage{lscape}
-  - \usepackage{booktabs}
-  - \usepackage{longtable}
+  - \usepackage[onehalfspacing]{setspace}
+  - \usepackage{fancyhdr}
+  - \pagestyle{fancy}
+  - \lhead{Mosqueira & Hillary}
+  - \rhead{Indian ocean albacore MSE}
 output:
-  pdf_document:
+  bookdown::pdf_document2:
     fig_caption: yes
     number_sections: yes
     toc: yes
+geometry: margin=3cm
+bibliography: boot/initial/references.bib
 tags:
 abstract:
 license: Creative Commons Attribution-ShareAlike 4.0 International Public License
 ---
 
-```{r knitr, echo=FALSE, message=FALSE}
+```{r setup, echo=FALSE}
 library(knitr)
 opts_chunk$set(echo=FALSE, message=FALSE, warning=FALSE,
-  fig.width=5, fig.height=3, fig.pos='H')
+  out.width="75%", fig.pos='hbt')
 ```
 
+# Executive Summary
 
+# Introduction
+
+## Stock Overview
+
+- Map distribution
+
+## Commercial exploitation
+
+## Scientific advice
+
+- Catch limits or other management measures
+- Compliance
+
+## MSE Background
+
+- Process
+- Decisions
+- Work carried out & presented
+
+## Objectives
+
+- Management objectives
+- Tuning objectives
+- Secondary objectives
+
+# Methods
+
+## Simulation and Evaluation Framework
+
+- ADD MSE simulation workflow
+
+## Operating Models (OMs)
+
+### Conditioning
+
+#### Operating model update
+
+- Conditioned OM updated to 2024
+- Updated catch series from 2010
+- Differences in catch not large enough to affect productivcity estimates, thus no full re-conditioning
+- Projected forward for nominal catches 2010-2024
+- Recruitment deviances taken from conditioned OM, on top of SRR with new SSB 2010-2020, and from future deviances (LM, sigmaR and rho by sample) 2021-2024
+- **PLOT** Comparison updasted and original OMs, plus SS3 runs
+- 2025 SS3 model not fully endorsed, problems.
+
+### Reference set
+
+### Robustness set
+
+### Climate change
+
+## Observation Error Model (OEM)
+
+## Future Projections
+
+## Candidate Management Procedures (MPs)
+
+### Estimation Methods
+
+### Harvest Control Rules
+
+#### HCR A
+
+- HCR diagram
+
+### # Implementation System
+
+## Implementation Error Model
+
+## Simulations
+
+### Experimental Setup
+
+### Performance Metrics
+
+# Results
+
+## MP Performance
+
+# Discussion
+
+## Management Implications 
+
+## Limitations
+
+## Conclusions
 
 # References
+
+# Appendix A: Operating model
+
+## Parameter definitions
+
+## Age-structured dynamics
+
+## Stock-recruitment relationship
+
+## Length-at-age
+
+## Length-weight relationship
+
+## Maturity
+
+## Biomass quantities
+
+## Exploitation rate
+
+## Survey indices
+
+# Appendix B: Harvest Control Rules
+
+## HCR A
+
+### Exploration
