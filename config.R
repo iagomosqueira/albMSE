@@ -14,6 +14,7 @@ library(parallel)
 library(mvtnorm)
 library(mse)
 library(ggh4x)
+library(qs2)
 source("utilities.R")
 
 library(TAF)
