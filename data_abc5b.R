@@ -438,11 +438,15 @@ om <- iter(om, seq(100))
 oem <- iter(oem, seq(100))
 
 # SAVE as qs2 (faster)
-qs_savem(om, oem, file='model/om5b.qs2')
+qs_savem(om, oem, file='data/om5b.qs2')
+
+# STORE in db
+writePerformance(performance(om, statistics[c("SB", "SB0", "SBMSY", "R", "HRMSY", "C")],
+  metrics=mets, years=2000:2024), overwrite=TRUE)
 
 # }}}
 
-# PROJECTIONS {{{
+# --- PROJECTIONS {{{
 
 qs_readm(om, oem, file='model/om5b.qs2')
 
@@ -482,4 +486,3 @@ fom <- list(C2024=fom_c2024, C0=fom_c0, MSY=fom_cmsy)
 save(fom, file="data/om5b/om5b_fwd.rda", compress="xz")
 
 # }}}
-

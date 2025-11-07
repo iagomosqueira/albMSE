@@ -2463,38 +2463,6 @@ hr <- function(om) {
 
 # }}} 
 
-# cpuescore.ind {{{
-# Calculated over mean and sd on refyrs
-
-cpuescore.ind <- function(stk, idx, index = 1, refyrs = NULL, ayears=3,
-  args, tracking) {
-
-  # ARGS
-  ay <- args$ay
-  dlag <- args$data_lag
-  dy <- ay - dlag
-  dys <- seq(dy - ayears + 1, dy)
-
-  # GET metric until dy
-  met <- seasonMeans(window(biomass(idx[[index]])[1, ], end = dy))
-  
-  # TODO: ADD average 3 years
-
-  if (!is.null(refyrs)) {
-    ref <- met[, ac(refyrs)]
-  } else {
-    ref <- met
-  }
-
-  ind <- FLQuants(zscore = expand((yearMeans(met[, ac(dys)]) %-% yearMeans(ref)) %/%
-    sqrt(yearVars(ref)), year=dy))
-
-  track(tracking, "cpue.ind", ac(ay)) <- ind$zscore
-
-  return(list(stk = stk, ind = ind, tracking = tracking, cpue = met))
-}
-# }}}
-
 # metrics {{{
 
 # relhr: HR / HR_MSY
@@ -2728,12 +2696,12 @@ timeMeans <- function(x)
   seasonMeans(yearMeans(x))
 
 zscore <- function(x, mean=yearMeans(x), sd=sqrt(yearVars(x)))
-  (x %-% mean) %/% sd
+  exp((x %-% mean) %/% sd)
 
-bufferdelta.hcr <- function(stk, ind, target=1, metric='zscore',
-  width=1, bufflow=target - width, buffupp=target + width,
-  lim=target - 2 * width, sloperatio=0.15, initac=NULL,
-  dupp=NULL, dlow=NULL, all=TRUE, ..., args, tracking) {
+bufferdelta.hcr <- function(stk, ind, metric='zscore',
+  target=1, width=0.5, lim=max(target * 0.10, target - 2 * width),
+  bufflow=max(lim * 1.50, target - width), buffupp=target + width, sloperatio=0.15,
+  initac=NULL, dupp=NULL, dlow=NULL, all=TRUE, ..., args, tracking) {
 
   # EXTRACT args
   ay <- args$ay
@@ -2811,14 +2779,14 @@ bufferdelta.hcr <- function(stk, ind, target=1, metric='zscore',
 
 plot_buffer.hcr <- function(args, obs="missing", alpha=0.3,
   labels=c(lim="limit", bufflow="Lower~buffer", buffupp="Upper~buffer", target="target",
-    metric=metric, output=output), metric='depletion', output='hcrmult') {
+    metric=metric, output=output), metric=args$metric, output='multiplier') {
 
   # EXTRACT args from mpCtrl
   if(is(args, "mseCtrl"))
     args <- args(args)
 
   # GET args
-  spread(lapply(args, c))
+  spread(lapply(args, c), FORCE=TRUE)
 
   # PARSE labels
   alllabels <- formals()$labels
@@ -2959,13 +2927,21 @@ setMethod("plot", signature(x="FLombf", y="missing"),
     argx <- setNames(list(window(x, end=2024)),
           nm=ifelse(name(x) == character(1), "OM", name(x)))
 
-    if(length(list(...)) == 0) {
+    args <- list(...)
+
+    if(length(args) == 0) {
 
       do.call(plotMetrics, argx)
 
+    } else if(length(args) == 1 & is(args[[1]], 'FLmses')) {
+
+      args <- lapply(args[[1]], function(i) window(om(i), start=2024))
+
+      do.call(plotMetrics, c(argx, args))
+
     } else {
 
-      args <- lapply(list(...), function(i) window(om(i), start=2024))
+      args <- lapply(args, function(i) window(om(i), start=2024))
 
       do.call(plotMetrics, c(argx, args))
   }
@@ -2998,7 +2974,7 @@ cpue.ind <- function(stk, idx, index=1, nyears=5, mean=yearMeans(index(idx)[[ind
   met <- biomass(idx[[index]])[1, dyrs]
 
   # 1. AVERAGE index
-  imean <- expand(seasonMeans(yearMeans(tail(met, nyears))), year=ay - dlag)
+  imean <- expand(yearMeans(seasonMeans(met)), year=ay - dlag)
 
   # 2. WEIGHTED average index of last nyears: 0.50 for last year, 0.50 others
   ywts <- c(0.50 * seq(1, nyears - 1) / sum(seq(1, nyears - 1)), 0.50)
@@ -3010,16 +2986,17 @@ cpue.ind <- function(stk, idx, index=1, nyears=5, mean=yearMeans(index(idx)[[ind
   slope <- FLQuant(slope$data, dimnames=dimnames(imean)[-4], units="")
 
   # 4. EXP zscore
-  score <- seasonMeans(exp(zscore(met, mean=FLQuant(mean), sd=FLQuant(sd))))
+  score <- expand(yearMeans(seasonMeans(zscore(met, mean=FLQuant(mean),
+    sd=FLQuant(sd)))), year=ay - dlag)
   
   # OUTPUT
   ind <- FLQuants(index=met, mean=imean, wmean=wmean, slope=slope, zscore=score)
 
   # TRACK
-  track(tracking, "index.ind", ac(ay)) <- met[, ac(ay - dlag)]
   track(tracking, "mean.ind", ac(ay)) <- mean
   track(tracking, "wmean.ind", ac(ay)) <- wmean
   track(tracking, "slope.ind", ac(ay)) <- slope
+  track(tracking, "zscore.ind", ac(ay)) <- score
 
   return(list(stk=stk, ind=ind, tracking=tracking, cpue=met))
 
