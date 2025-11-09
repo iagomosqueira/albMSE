@@ -2778,7 +2778,7 @@ bufferdelta.hcr <- function(stk, ind, metric='zscore',
 # plot_buffer.hcr {{{
 
 plot_buffer.hcr <- function(args, obs="missing", alpha=0.3,
-  labels=c(lim="limit", bufflow="Lower~buffer", buffupp="Upper~buffer", target="target",
+  labels=c(lim="limit", bufflow="Lower~buffer", buffupp="Upper~buffer",
     metric=metric, output=output), metric=args$metric, output='multiplier') {
 
   # EXTRACT args from mpCtrl
@@ -2813,6 +2813,9 @@ plot_buffer.hcr <- function(args, obs="missing", alpha=0.3,
   # DATA
   # TODO: ADD 'set'
   dat <- data.frame(met=met, out=out)
+
+  # TODO:
+  scale <- 1
   
   # TODO: ADD aes(group='set')
   p <- ggplot(dat, aes(x=met, y=out)) +
@@ -2821,25 +2824,25 @@ plot_buffer.hcr <- function(args, obs="missing", alpha=0.3,
     geom_line() +
     # TODO: TARGET & WIDTH
     # BUFFER UPP
-    annotate("segment", x=buffupp, xend=buffupp, y=0, yend=target, linetype=2) +
-    annotate("point", x=buffupp, y=target, size=3) +
+    annotate("segment", x=buffupp, xend=buffupp, y=0, yend=scale, linetype=2) +
+    annotate("point", x=buffupp, y=scale, size=3) +
     annotate("text", x=buffupp, y=-ylim / 40, label=labels$buffupp,
       vjust="bottom", parse=TRUE) +
     # BUFFER LOW
-    annotate("segment", x=bufflow, xend=bufflow, y=0, yend=target, linetype=2) +
-    annotate("point", x=bufflow, y=target, size=3) +
+    annotate("segment", x=bufflow, xend=bufflow, y=0, yend=scale, linetype=2) +
+    annotate("point", x=bufflow, y=scale, size=3) +
     annotate("text", x=bufflow, y=-ylim / 40, label=labels$bufflow,
       vjust="bottom", parse=TRUE) +
     # LIMIT
-    annotate("segment", x=lim, xend=lim, y=0, yend=out[which.min(abs(met - lim))], linetype=2) +
+    annotate("segment", x=lim, xend=lim, y=0, yend=out[which.min(abs(met - lim))], 
+      linetype=2) +
     annotate("point", x=lim, y=out[which.min(abs(met - lim))], size=3) +
     annotate("text", x=lim, y=-ylim / 40, label=labels$lim, vjust="bottom",
       parse=TRUE) +
     # SLOPE
     annotate("segment", x=buffupp, xend=xlim, y=1, yend=1, linetype=2) +
-    annotate("text", x=buffupp + (xlim - buffupp) / 3, y=1, label="slope", vjust="bottom",
-      parse=TRUE)
-
+    annotate("text", x=buffupp + (xlim - buffupp) / 3, y=1, label="slope", 
+      vjust="bottom", parse=TRUE)
 
   # AXIS labels
   if(!is.null(labels$metric))
@@ -2910,7 +2913,7 @@ plotMetrics <- function(..., maxhr=5) {
   })
   
   ms <- lapply(ms, function(i) {
-    names(i) <- c("SSB (t)", "C (t)", "H/H[MSY]", "R")
+    names(i) <- c("SSB", "C", "H/H[MSY]", "R")
     return(i)
   })
 

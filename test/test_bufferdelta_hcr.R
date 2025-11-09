@@ -9,11 +9,8 @@
 
 source("config.R")
 
-# LOAD om
-load('data/om5b_updated.rda')
-
-om <- iter(om5b$om, seq(100))
-oem <- iter(om5b$oem, seq(100))
+# LOAD 100 iter objects
+qs_readm("data/om5b.qs2")
 
 # RESET method JIC
 method(projection(om)) <- fwdabc.om
@@ -28,15 +25,47 @@ ty <- seq(iy + 11, iy + 15)
 
 ctrl <- mpCtrl(list(
   # EST
-  est = mseCtrl(method=cpue.ind, args=list(index=1, ayears=4)),
+  est = mseCtrl(method=cpue.ind, args=list(index=1, nyears=4)),
   # HCR
   hcr = mseCtrl(method=bufferdelta.hcr,
-    args=list(target=1, width=1, buffupp=3, sloperatio=0.15, dlow=0.85, dupp=1.15,
+    args=list(target=0.80, lim=0.25, bufflow=0.50, buffupp=1.10, sloperatio=0.25,
       metric="zscore", initac=42000))
 ))
 
 # RUN
 tes <- mp(om, oem, ctrl=ctrl, args=list(iy=iy, fy=fy, frq=3))#, .DEBUG=TRUE)
+
+performance(tes, statistics=statistics['green'], metrics=mets)[year %in% ty, mean(data)]
+
+system.time(
+tune <- tunebisect(om, oem=oem, control=ctrl, args=list(iy=iy, fy=fy, frq=3),
+  statistic=statistics["green"], metrics=mets, years=ty,
+  tune=list(buffupp=c(0.85, 2.5)), prob=0.6, tol=0.01, maxit=16)
+)
+
+# BUG: type missing makes performance(list) fail
+performance(tune, statistics=statistics['green'], metrics=mets)[year %in% ty, mean(data)]
+
+control(tune)$hcr
+
+plot_buffer.hcr(control(tune)$hcr)
+
+performance(tune, statistics=statistics, metrics=mets, type='test', run='001')
+
+dat[, mp:=ifelse(all(c("type", "run") %in% colnames(dat)), paste(om, type, run, sep="_"), character(1))]
+
+
+plot(om, K60=tune)
+
+plot_buffer.hcr(ctrl$hcr) + xlab("LL CPUE1 (zscore)")
+args(ctrl$hcr)
+
+         mp    V1
+     <char> <num>
+1: NA_a_min 0.688
+2: NA_a_max 0.694
+
+
 
 # EXPLORE
 

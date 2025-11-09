@@ -12,6 +12,9 @@ source("config.R")
 # LOAD 100 iter objects
 qs_readm("data/om5b.qs2")
 
+# BUG:
+index(observations(oem)$ALB$idx[[1]])[, ac(2025:2045)] <- NA
+
 # RESET method JIC
 method(projection(om)) <- fwdabc.om
 
@@ -66,7 +69,7 @@ plot(om, "Constant catch Kobe 60%"=tune) +
 
 # }}}
 
-# --- DOES NOT TUNE -- TUNE cpues.ind + bufferdelta.hcr(mult~zscore) {{{
+# --- TUNE cpue.ind + bufferdelta.hcr(mult~zscore) {{{
 
 # EXPLORE NW index to get zscore reference years
 
@@ -75,53 +78,100 @@ load('data/base.rda')
 nwi <- Reduce(join, lapply(base$ids[1:4], index))
 
 # NW CPUE years with catch ~ CC tuned value
-ref <- seasonMeans(nwi[, unitSums(seasonSums(catch(base$stk)[, ac(1975:2020)])) < 45000 & unitSums(seasonSums(catch(base$stk)[, ac(1975:2020)])) > 35000])
+ref <- seasonMeans(nwi[, unitSums(seasonSums(catch(base$stk)[, ac(1975:2020)])) < 45000 
+  & unitSums(seasonSums(catch(base$stk)[, ac(1975:2020)])) > 35000])
 
-yearMeans(ref)
-sqrt(yearVars(ref))
-
-exp(zscore(seasonMeans(nwi)[, ac(2000:2020)], mean=yearMeans(ref), 
-  sd=sqrt(yearVars(ref))))
+meanref <- propagate(yearMeans(ref), 100)
+sdref <- propagate(sqrt(yearVars(ref)), 100)
 
 # SET control
 
 ctrl <- mpCtrl(list(
   # EST
-  est = mseCtrl(method=cpue.ind,
-    args=list(index=1, mean=yearMeans(ref), sd=sqrt(yearVars(ref)), nyears=4)),
+  est = mseCtrl(method=cpue.ind, args=list(index=1, nyears=4,
+    mean=meanref, sd=sdref)),
   # HCR
   hcr = mseCtrl(method=bufferdelta.hcr,
-    args=list(target=1, buffupp=1.8, bufflow=0.8, sloperatio=0.15, lim=0.5,
-      metric="zscore", initac=42000))))
+    args=list(lim=0.25, bufflow=0.50, buffupp=1.10, sloperatio=0.25,
+      metric="zscore", initac=42000))
+))
 
-# TEST run
-test <- mp(om, oem, ctrl=ctrl, args=list(iy=iy, fy=2032, frq=3), .DEBUG=FALSE)
-
-# PLOT
-plot(om, TEST=test) +
-  geom_vline(xintercept=ISOdate(c(ty[1], ty[length(ty)]), 1, 1), linetype=3, alpha=0.8)
-
-# KOBE performance
-performance(test, statistics=statistics['green'], metrics=mets)[year %in% ty, mean(data)]
+# TEST
+tes <- mp(om, oem, control=ctrl, args=list(iy=2024, fy=2033, frq=3)), .DEBUG=FALSE)
 
 # - TUNE for P(Kobe=green) = 60%
 
 system.time(
 tune <- tunebisect(om, oem=oem, control=ctrl, args=list(iy=iy, fy=fy, frq=3),
   statistic=statistics["green"], metrics=mets, years=ty,
-  tune=list(buffupp=c(1.5, 3)), prob=0.6, tol=0.02, maxit=16)
+  tune=list(buffupp=c(0.85, 2.5)), prob=0.6, tol=0.01)
 )
 
 # COMPUTE performance
 performance(tune) <- performance(tune, statistics=statistics, metrics=mets,
-  type="tune") #, run="kobe60")
+  type="buffer", run="kobe60") #, run="kobe60")
 
 # KOBE performance
 performance(tune)[statistic=='green' & year %in% ty, mean(data), by=mp]
 
-# PLOT
+# PLOT time series
 plot(om, K60=tune) +
   geom_vline(xintercept=ISOdate(c(ty[1], ty[length(ty)]), 1, 1), linetype=3, alpha=0.8)
+
+# PLOT HCR & future observations TODO: ADD decisions
+plot_buffer.hcr(control(tune)$hcr) +
+  geom_point(data=data.table(met=c(index(observations(oem(tune))$ALB$idx[[1]])), out=0),
+    alpha=0.01)
+
+# PLOT observed index
+plot(index(observations(oem(tune))$ALB$idx[[1]]))
+
+# }}}
+
+# --- TUNE cpues.ind + bufferdelta.hcr(mult~wmean) {{{
+
+# SET control
+
+ctrl <- mpCtrl(list(
+  # EST
+  est = mseCtrl(method=cpue.ind, args=list(index=1, nyears=4)),
+  # HCR
+  hcr = mseCtrl(method=bufferdelta.hcr,
+    args=list(lim=0.25, bufflow=0.50, buffupp=1.50, sloperatio=0.20,
+      metric="wmean", initac=42000))
+))
+
+# TEST
+tes <- mp(om, oem, control=ctrl, args=list(iy=2024, fy=2045, frq=3), .DEBUG=FALSE)
+
+performance(tes, statistics=statistics['green'], metrics=mets)[, mean(data), by=year]
+
+# - TUNE for P(Kobe=green) = 60%
+
+system.time(
+tune <- tunebisect(om, oem=oem, control=ctrl, args=list(iy=iy, fy=fy, frq=3),
+  statistic=statistics["green"], metrics=mets, years=ty,
+  tune=list(bufflow=c(0.25, 1.25)), prob=0.6, tol=0.01)
+)
+
+# COMPUTE performance
+performance(tune) <- performance(tune, statistics=statistics, metrics=mets,
+  type="buffer", run="kobe60") #, run="kobe60")
+
+# KOBE performance
+performance(tune)[statistic=='green' & year %in% ty, mean(data), by=mp]
+
+# PLOT time series
+plot(om, K60=tune) +
+  geom_vline(xintercept=ISOdate(c(ty[1], ty[length(ty)]), 1, 1), linetype=3, alpha=0.8)
+
+# PLOT HCR & future observations TODO: ADD decisions
+plot_buffer.hcr(control(tune)$hcr) +
+  geom_point(data=data.table(met=c(index(observations(oem(tune))$ALB$idx[[1]])), out=0),
+    alpha=0.01)
+
+# PLOT observed index
+plot(index(observations(oem(tune))$ALB$idx[[1]]))
 
 # }}}
 
