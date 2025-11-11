@@ -9,7 +9,7 @@ header-includes:
   - \usepackage[onehalfspacing]{setspace}
   - \usepackage{fancyhdr}
   - \pagestyle{fancy}
-  - \lhead{Mosqueira & Hillary}
+  - \lhead{Mosqueira \& Hillary}
   - \rhead{Indian ocean albacore MSE}
 output:
   bookdown::pdf_document2:
@@ -26,7 +26,7 @@ license: Creative Commons Attribution-ShareAlike 4.0 International Public Licens
 ```{r setup, echo=FALSE}
 library(knitr)
 opts_chunk$set(echo=FALSE, message=FALSE, warning=FALSE,
-  out.width="75%", fig.pos='hbt')
+  out.width="75%", fig.pos='hbt', fig.align="center")
 ```
 
 # Executive Summary
@@ -52,7 +52,7 @@ opts_chunk$set(echo=FALSE, message=FALSE, warning=FALSE,
 
 ## Objectives
 
-- Management objectives
+- Management objectives: overall IOTC MSY objective, other MPs
 - Tuning objectives
 - Secondary objectives
 
@@ -64,25 +64,58 @@ opts_chunk$set(echo=FALSE, message=FALSE, warning=FALSE,
 
 ## Operating Models (OMs)
 
+- DESCRIBE OM structure
+
+- TABLE OMs tested
+
 ### Conditioning
+
+- DESCRIBE input data
 
 #### Operating model update
 
-- Conditioned OM updated to 2024
-- Updated catch series from 2010
+- New dataset for [@WPTmT_2025] assessment
+  - Updated annual nominal catch series from 2010
 - Differences in catch not large enough to affect productivcity estimates, thus no full re-conditioning
-- Projected forward for nominal catches 2010-2024
-- Recruitment deviances taken from conditioned OM, on top of SRR with new SSB 2010-2020, and from future deviances (LM, sigmaR and rho by sample) 2021-2024
-- **PLOT** Comparison updasted and original OMs, plus SS3 runs
+- **PLOT** Comparison SS3 runs
+
+```{r data-sas-compare, fig.cap="Time series of annual recruitment, spawning stock biomass, catch and fishing mortality estimated by the 2022 and 2025 NW LLCPUE stock assessment model runs for Indian ocean albacore tuna."}
+knitr::include_graphics("report/data_sas_compare.png")
+```
+
 - 2025 SS3 model not fully endorsed, problems.
+
+- Conditioned OM updated to 2024 by
+  - Projecting forward using the new catch series 2010:2024
+  - Recruitment deviances from the conditioned OM used in 2022 assessment, on top of SRR with new SSB 2010-2020, and from future deviances (LM, sigmaR and rho by sample) 2021-2024
+  - Proportions by quarter kept as in projection set up, no changes between the two datasets, constant in time (Fiigure \@ref(fig:data-sas-catchprops))
+
+```{r data-sas-catchprops, fig.cap="Annual proportion by season of the total catch for Indian ocean albacore tuna, obtained from the inputs to both the 2022 and 2025 stock assessment model runs."}
+knitr::include_graphics("report/data_sas_catchprops.png")
+```
+
+- Updated observations of abundances and indices
+
+- **PLOT** Comparison updated and original OMs
+
+- **PLOT** Comparison updated and original indices
 
 ### Reference set
 
+- DESCRIBE om5b
+
 ### Robustness set
+
+- DESCRIBE om6b
 
 ### Climate change
 
+- DESCRIBE CC
+
 ## Observation Error Model (OEM)
+
+- Catch
+- Indices
 
 ## Future Projections
 
@@ -104,7 +137,26 @@ opts_chunk$set(echo=FALSE, message=FALSE, warning=FALSE,
 
 ### Experimental Setup
 
-### Performance Metrics
+### Performance statistics
+
+- *SB*, Spawner biomass.
+- *SB/SB[0]*, Spawner biomass relative to unfished.
+- *min(SB/SB[0])*, Minimum spawner biomass relative to unfished.
+- *SB/SB[MSY]*, Spawnwer biomass relative to SBMSY.
+- *R*, Recruitment.
+- *HR*, Annual relative harvest rate, computed as an seasonal average of the sum of the harvest rates by fishery over the HR at MSY reference point, $\sum_{f=1}^{6} HR_{f} / HR_{MSY}$.
+- *P(Green)*, Probability of being in Kobe green quadrant, $SB > SB_{MSY} \land HRMSY < 1$.
+- *P(Orange)*, Probability of being in Kobe orange quadrant, $SB > SB_{MSY} \land HRMSY >= 1$.
+- *P(Yellow)*, Probability of being in Kobe yellow quadrant, $SB <= SB_{MSY} \land HRMSY < 1$.
+- *P(Red)*, Probability of being in Kobe red quadrant, $SB <= SB_{MSY} \land HRMSY >= 1$.
+- *P(SB>=SB[MSY])*, Probability of SB greater or equal to SBMSY.
+- *P(SB>SB[limit])*, Probability that spawner biomass is above 10% SB0.
+- *C*, Total catch.
+- *C/MSY*, Proportion of MSY.
+- *AAV(C)*, Annual variability in catch.
+- *IAC(C)*, Percentage inter-annual change in catch, $(C_{y-1} - C_{y}) / C_{y}$.
+- *P(shutdown)*, Probability of fishery shutdown, taken to be when catch falls below 1% of MSY.
+
 
 # Results
 
@@ -145,3 +197,4 @@ opts_chunk$set(echo=FALSE, message=FALSE, warning=FALSE,
 ## HCR A
 
 ### Exploration
+

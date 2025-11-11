@@ -150,7 +150,9 @@ seasonq <- TRUE
 
 # catchability trend in q
 
-qtrend <- FALSE
+qtrend <- TRUE
+delq <- 0.01
+qt <- exp(delq*(0:(ny-1))) %o% rep(1,4)
 
 # burn-in and thinning factor
  
@@ -224,27 +226,6 @@ mcvars <- get.mcmc2.vars(mcpars)
 # SAVE output
 save(mcpars, mcvars, C, file="data/om6b/mcvars_abc6b.rda", compress="xz")
 
-# TEST:
-devs_cpue <- lapply(mcvars, function(x)
-  log(I[,,fcpue]) - (log(x$Ihat) + matrix(rep(x$lnq, each=21), nrow=21, ncol=4))
-)
-
-rngdevs_cpue <- do.call(rbind, lapply(devs_cpue, range))
-
-hist(rngdevs_cpue[,1])
-hist(rngdevs_cpue[,2])
-
-which(rngdevs_cpue[,2] == max(rngdevs_cpue[,2]))
-which(rngdevs_cpue[,1] == min(rngdevs_cpue[,1]))
-
-I[,,1] /
-  exp(log(mcvars[[13]]$Ihat) + matrix(rep(mcvars[[13]]$lnq, each=21), nrow=21, ncol=4))
-
-I[,,1] /
-  exp(log(mcvars[[12]]$Ihat) + matrix(rep(mcvars[[12]]$lnq, each=21), nrow=21, ncol=4))
-
-
-
 # }}}
 
 # --- CREATE om & oem {{{
@@ -252,9 +233,6 @@ I[,,1] /
 load('data/base.rda')
 load('data/om6b/mcmc_abc6b.rda')
 load('data/om6b/mcvars_abc6b.rda')
-
-# BUG iter 13
-mcvars[[13]] <- mcvars[[113]]
 
 # LOAD pcbar (catch proportions by fleet & season)
 pcbar <- as.matrix(fread('boot/data/pcbar.dat'))
@@ -392,7 +370,7 @@ plot(iter(cpue_devs, seq(9))) +
   facet_wrap(~iter) + ylim(0, NA)
 
 # ASSIGN to quarters
-cpue_ydevs <- res[, ac(2010:2024)] %=% 1
+cpue_ydevs <- index(ihat)[, ac(2010:2024)] %=% 1
 
 for(i in seq(0, dim(cpue_ydevs)[2] - 1))
   cpue_ydevs[, i+1, ] <- cpue_devs[, i * 4 + 1:4]
@@ -418,7 +396,7 @@ index(ihat)[, ac(2010:2024)] <- index(ihat)[, ac(2010:2024)] * cpue_ydevs
 observations(oem)$ALB$idx[[1]] <- ihat
 
 # UPDATE oem stock
-observations(oem)$ALB$stk[, ac(2010:2024)] <- stock(nom)[[1]][, ac(2010:2024)]
+observations(oem)$ALB$stk[, ac(2010:2024)] <- stock(hind_om)[[1]][, ac(2010:2024)]
 
 # UPDATE om
 om <- hind_om
@@ -428,6 +406,57 @@ save(om, oem, file="data/om6b/om6b_updated.rda", compress="xz")
 
 # }}}
 
-# STORE in db
-writePerformance(performance(om, statistics[c("SB", "SB0", "SBMSY", "HRMSY", "C")],
-  metrics=mets, years=2000:2024), overwrite=TRUE)
+# --- SAVE 100 iter objects {{{
+
+# LOAD om
+load('data/om6b/om6b_updated.rda')
+
+# EXTRACT
+om <- iter(om, seq(100))
+oem <- iter(oem, seq(100))
+
+# SAVE as qs2 (faster)
+qs_savem(om, oem, file='data/om6b.qs2')
+
+# }}}
+
+# --- PROJECTIONS {{{
+
+qs_readm(om, oem, file='model/om6b.qs2')
+
+performance(window(om, end=2024), statistics=statistics['green'],
+  metrics=mets)[, .(Pgreen=mean(data)), by=year]
+
+# FWD(C=C0) 
+
+ctrl <- fwdControl(year=2025:2045, biol=1, quant='catch', value=0)
+
+system.time(
+fom_c0 <- fwdabc.om(om, ctrl, pcbar=args(projection(om))$pcbar,
+  pla=args(projection(om))$pla, verbose=TRUE)$om
+)
+
+# FWD(C=C2024) 
+
+ctrl <- fwdControl(year=2025:2045, biol=1, quant='catch', value=catch(om)[,'2024'][[1]])
+
+system.time(
+fom_c2024 <- fwdabc.om(om, ctrl, pcbar=args(projection(om))$pcbar,
+  pla=args(projection(om))$pla, verbose=TRUE)$om
+)
+
+# FWD(C=MSY2025) 
+
+ctrl <- fwdControl(year=2024:2045, biol=1, quant='catch', value=ss25$rps$MSY)
+
+system.time(
+fom_cmsy <- fwdabc.om(om, ctrl, pcbar=args(projection(om))$pcbar,
+  pla=args(projection(om))$pla, verbose=TRUE)$om
+)
+
+# SAVE
+fom <- list(C2024=fom_c2024, C0=fom_c0, MSY=fom_cmsy)
+
+save(fom, file="data/om6b/om6b_fwd.rda", compress="xz")
+
+# }}}

@@ -7,17 +7,17 @@
 # Distributed under the terms of the EUPL-1.2
 
 
-library(Rcpp)
+library(TAF)
 library(FLCore)
 library(ggplotFL)
-library(parallel)
-library(mvtnorm)
 library(mse)
+library(Rcpp)
+library(mvtnorm)
+library(parallel)
 library(ggh4x)
 library(qs2)
-source("utilities.R")
 
-library(TAF)
+source("utilities.R")
 
 sourceCpp("utilities/init_pdyn.cpp")
 sourceCpp("utilities/msy_pdyn.cpp")

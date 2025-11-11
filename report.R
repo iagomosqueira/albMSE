@@ -14,13 +14,34 @@ mkdir("report")
 
 # --- data.R {{{
 
-# - COMPARE SS3 2022-2025
+# -- McMC output
+
+load("data/om5b/mcvars_abc5b.rda")
+
+
+# -- COMPARE SS3 2022-2025
 
 load('data/base.rda')
 load('data/alb_2025_nw.rda')
 
 sas <- FLStocks('2022'=noseason(nounit(base$stk)),
   '2025'=noseason(nounit(ss25$stk)))
+
+# PLOT CATCH proportions by quarter
+
+catch_props <- FLQuants("2022"=unitSums(catch(base$stk))[, ac(2010:2020)] %/%
+  seasonSums(unitSums(catch(base$stk))[, ac(2010:2020)]),
+  "2025"=unitSums(catch(ss25$stk))[, ac(2010:2023)] %/%
+  seasonSums(unitSums(catch(ss25$stk))[, ac(2010:2023)])
+)
+
+taf.png("data_sas_catchprops.png")
+ggplot(catch_props, aes(x=year, y=data, fill=season)) +
+  geom_bar(stat='identity', position='fill') +
+  facet_wrap(~qname, ncol=1) +
+  xlab("") + ylab("Proportion of annual catch") +
+  scale_y_continuous(labels = scales::percent)
+dev.off()
 
 # PLOT FLStocks
 taf.png("data_sas_compare.png")
@@ -149,8 +170,7 @@ dev.off()
 
 # RENDER
 
-render('report_wpm_2025.Rmd', output_dir='report',
-  output_file='IOTC-2025-WPM16-11_ALB_MSE.pdf')
+render('report.Rmd', output_dir='report', output_file='report.pdf')
 
 render('presentation_wpm_2025.Rmd', output_dir='report',
   output_file='presentation-IOTC-2025-WPM16-11_ALB_MSE.pdf')

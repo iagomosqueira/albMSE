@@ -224,27 +224,6 @@ mcvars <- get.mcmc2.vars(mcpars)
 # SAVE output
 save(mcpars, mcvars, C, file="data/om5b/mcvars_abc5b.rda", compress="xz")
 
-# TEST:
-devs_cpue <- lapply(mcvars, function(x)
-  log(I[,,fcpue]) - (log(x$Ihat) + matrix(rep(x$lnq, each=21), nrow=21, ncol=4))
-)
-
-rngdevs_cpue <- do.call(rbind, lapply(devs_cpue, range))
-
-hist(rngdevs_cpue[,1])
-hist(rngdevs_cpue[,2])
-
-which(rngdevs_cpue[,2] == max(rngdevs_cpue[,2]))
-which(rngdevs_cpue[,1] == min(rngdevs_cpue[,1]))
-
-I[,,1] /
-  exp(log(mcvars[[13]]$Ihat) + matrix(rep(mcvars[[13]]$lnq, each=21), nrow=21, ncol=4))
-
-I[,,1] /
-  exp(log(mcvars[[12]]$Ihat) + matrix(rep(mcvars[[12]]$lnq, each=21), nrow=21, ncol=4))
-
-
-
 # }}}
 
 # --- CREATE om & oem {{{
@@ -392,7 +371,7 @@ plot(iter(cpue_devs, seq(9))) +
   facet_wrap(~iter) + ylim(0, NA)
 
 # ASSIGN to quarters
-cpue_ydevs <- res[, ac(2010:2024)] %=% 1
+cpue_ydevs <- index(ihat)[, ac(2010:2024)] %=% 1
 
 for(i in seq(0, dim(cpue_ydevs)[2] - 1))
   cpue_ydevs[, i+1, ] <- cpue_devs[, i * 4 + 1:4]

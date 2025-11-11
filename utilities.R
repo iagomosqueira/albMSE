@@ -158,22 +158,6 @@ mc.output <- function(x, C) {
 }
 # }}}
 
-# buildOM (stk,vars) {{{
-
-buildOM <- function(stk, vars) {
-
-  # WINDOW
-  stk <- window(stk, start=2000)
-
-  # ASSIGN stock.n and m
-  stock.n(stk) <- vars$stock.n
-  m(stk) <- vars$m
-
-  # SIMPLIFY
-
-}
-# }}}
-
 # FUNCTIONS {{{
 
 logit <- function(x){
@@ -2356,8 +2340,6 @@ fwdabc.om <- function(om, ctrl, pcbar, pla, verbose=FALSE, ...) {
 
   for(i in its) {
 
-  # TODO: MODIFY inp every iter
-
   # ASSEMBLE inputs
   inp <-   list(
     # dms: dimensions: year, season, age, lengths, fishery
@@ -2371,7 +2353,6 @@ fwdabc.om <- function(om, ctrl, pcbar, pla, verbose=FALSE, ...) {
     # - psi: sex ratio at birth
     psi_=0.5,
     # - epsrx: future rec devs [year]
-    # epsr_=rnorm(nyrs,0,0.355),
     epsr_=log(deviances(om)[, yrs,'F',4,,i]),
     # - spr0: SRR B0/R0
     spr0_=c(params(sr(biol(om)))$v[,i] / (params(sr(biol(om)))$R0[,i] * 1000)),
@@ -2571,7 +2552,7 @@ statistics <- list(
   PSBlim = list(~yearMeans((SB / (SB0 * 0.10)) > 1), name = "P(SB>SB[limit])", 
     desc = "Probability that spawner biomass is above 10% SB0"),
   # C
-  C = list(~yearMeans(C), name = "mean(C)", desc = "Total catch"),
+  C = list(~yearMeans(C), name = "C", desc = "Total catch"),
   # C/MSY
   CMSY = list(~yearMeans(C/MSY), name = "C/MSY", desc = "Proportion of MSY"),
   # AAV
@@ -2584,113 +2565,14 @@ statistics <- list(
   # PC0
   PC0 = list(~yearSums(C < 0.01 * MSY) / dim(C)[2], name = "P(shutdown)", 
     desc = "Probability of fishery shutdown")
+  # P(C decrease)
+#  PCdecrease = list(~yearMeans(FLQuant(decision.hcr < 3)[,,,1]), 
+#    name="P(Cdecrease)", desc="Probability of catch decreasing")
   )
+
 # }}}
 
 # buffer.hcr {{{
-
-#' A buffered and non-linear hockeystick HCR
-#'
-#' A Harvest Control Rule (HCR) that extends the traditional hockeystick shape
-#' by allowing for increasing output when stock status rises above a buffer set
-#' around the target.
-#' @param lim Point at which the HCR response moves from linear to quadratic in terms of reducing HCR multiplier, numeric.
-#' @param bufflow Lower point of "buffer zone" where HCR response is fixed at 1.
-#' @param buffupp Upper point of "buffer zone" where HCR response is fixed at 1.
-#' @param sloperatio fractional difference
-#'
-#' so the response of the HCR in this case would be as follows:
-#' if(muI > Ilim & muI <= buffl) HCRmult <- (0.5*(1+(muI-Ilim)/(buffl-Ilim)))
-#' if(muI > buffl & muI < buffh) HCRmult <- 1
-#' if(muI >= buffh) HCRmult <- 1+sloperatio*gr*(muI-buffh) 
-#' if(muI <= Ilim) HCRmult <- (muI/Ilim)^2/2
-#'
-#' @author Original design by R. Hillary (CSIRO). Implemented by I. Mosqueira (WMR).
-#' @references
-#' Hillary, R. 2020. *Management Strategy Evaluation of the Broadbill Swordfish ETBF harvest strategies*. Working document.
-
-buffer.hcr <- function(stk, ind, target, metric='depletion', lim=0.10,
-  bufflow=0.30, buffupp=0.50, sloperatio=0.20, initac=NULL, dupp=NULL, dlow=NULL,
-  all=TRUE, ..., args, tracking) {
-
-  # EXTRACT args
-  ay <- args$ay
-  iy <- args$iy
-  data_lag <- args$data_lag
-  man_lag <- args$management_lag
-  frq <- args$frq
-
-  # SET data year
-  dy <- ay - data_lag
-  # SET control years
-  cys <- seq(ay + man_lag, ay + man_lag + frq - 1)
-
-  # COMPUTE metric
-  met <- mse::selectMetric(metric, stk, ind)
-  met <- window(met, start=dy, end=dy)
-
-  # TRACK metric & status (HCR segment)
-  track(tracking, "metric.hcr", dy) <- met
-  track(tracking, "status.hcr", dy) <- cut(c(met),
-    breaks=c(-1e-08, lim, bufflow, buffupp, Inf), c(1, 2, 3, 4))
-
-  # COMPUTE HCR multiplier if ...
-  # BELOW lim
-  hcrm <- ifelse(met <= lim, ((met / lim) ^ 2) / 2,
-    # BETWEEN lim and bufflow
-    ifelse(met < bufflow,
-      (0.5 * (1 + (met - lim) / (bufflow - lim))),
-    # BETWEEN bufflow and buffupp
-    ifelse(met < buffupp, 1, 
-    # ABOVE buffupp
-      1 + sloperatio * 1 / (2 * (bufflow - lim)) * (met - buffupp))))
-
-  # GET previous TAC from last hcr ...
-  if(is.null(initac)) {
-    pre <- tracking[[1]]['hcr', ac(ay),,1]
-    # ... OR catch
-    if(all(is.na(pre)))
-      pre <- unitSums(areaSums(seasonSums(catch(stk)[, ac(ay - args$data_lag)])))
-  } else {
-    pre <- FLQuant(initac, iter=args$it)
-  }
-
-  # SET TAC as tac = B * (1 - exp(-fm * hcrm * (F / FMSY))
-  out <- target * hcrm
-
-  # TRACK initial target
-  track(tracking, "tac.hcr", cys) <- out
-
-  # APPLY limits, always or if met < trigger
-  if(!is.null(dupp)) {
-    if(all) {
-    out[out > pre * dupp] <- pre[out > pre * dupp] * dupp
-    } else {
-    out[out > pre * dupp & met < bufflow] <- pre[out > pre * dupp & met <
-      bufflow] * dupp
-    }
-  }
-
-  if(!is.null(dlow)) {
-    if(all) {
-    out[out < pre * dlow] <- pre[out < pre * dlow] * dlow
-    } else {
-    out[out < pre * dlow & met < bufflow] <- pre[out < pre * dlow & met <
-      bufflow] * dlow
-    }
-  }
-
-  # CONTROL
-  ctrl <- fwdControl(
-    # TARGET for frq years
-    c(lapply(cys, function(x) list(quant="catch", value=c(out), year=x)))
-  )
-	
-  list(ctrl=ctrl, tracking=tracking)
-}
-# }}}
-
-# bufferdelta.hcr {{{
 
 timeMeans <- function(x)
   seasonMeans(yearMeans(x))
@@ -2698,8 +2580,8 @@ timeMeans <- function(x)
 zscore <- function(x, mean=yearMeans(x), sd=sqrt(yearVars(x)))
   exp((x %-% mean) %/% sd)
 
-bufferdelta.hcr <- function(stk, ind, metric='zscore',
-  target=1, width=0.5, lim=max(target * 0.10, target - 2 * width),
+buffer.hcr <- function(stk, ind, metric='zscore',
+  target=1, width=0.5, lim=max(target * 0.10, target - 2 * width), scale=lastcatch,
   bufflow=max(lim * 1.50, target - width), buffupp=target + width, sloperatio=0.15,
   initac=NULL, dupp=NULL, dlow=NULL, all=TRUE, ..., args, tracking) {
 
@@ -2715,13 +2597,13 @@ bufferdelta.hcr <- function(stk, ind, metric='zscore',
   # SET control years
   cys <- seq(ay + man_lag, ay + man_lag + frq - 1)
 
-  # COMPUTE metric
+  # COMPUTE and window metric
   met <- mse::selectMetric(metric, stk, ind)
   met <- window(met, start=dy, end=dy)
   
   # COMPUTE HCR multiplier if ...
   # BELOW lim
-  hcrm <- ifelse(met <= lim, ((lim/met) ^ 2) / 2,
+  hcrm <- ifelse(met <= lim, ((met / lim) ^ 2) / 2,
     # BETWEEN lim and bufflow
     ifelse(met < bufflow,
       (0.5 * (1 + (met - lim) / (bufflow - lim))),
@@ -2730,18 +2612,27 @@ bufferdelta.hcr <- function(stk, ind, metric='zscore',
     # ABOVE buffupp
       1 + sloperatio * 1 / (2 * (bufflow - lim)) * (met - buffupp))))
 
-  # GET previous TAC from last hcr ...
-  if(is.null(initac)) {
-    pre <- tracking[[1]]['hcr', ac(ay)]
-    # ... OR catch
-    if(all(is.na(pre)))
-      pre <- unitSums(areaSums(seasonSums(catch(stk)[, ac(ay - args$data_lag)])))
+  # TRACK decision
+  dec <- ifelse(met <= lim, 1,
+   ifelse(met < bufflow, 2,
+    ifelse(met < buffupp, 3, 4)))
+
+  # track(tracking, "decision.hcr", cys) <- dec
+
+  # GET initial TAC,
+  if(!is.null(initac) & ay == iy) {
+    lastcatch <- FLQuant(initac, iter=args$it)
+  # previous TAC, or
   } else {
-    pre <- FLQuant(initac, iter=args$it)
+    # DEBUG: tracking has copies by season, TURN annual?
+    lastcatch <- tracking[[1]]['hcr', ac(ay),,1]
+    # previous catch
+    if(all(is.na(lastcatch)))
+      lastcatch <- unitSums(areaSums(seasonSums(catch(stk)[, ac(ay - args$data_lag)])))
   }
 
-  # SET TAC as tac = B * (1 - exp(-fm * hcrm * (F / FMSY))
-  out <- pre * hcrm
+  # SET TAC
+  out <- scale * hcrm
 
   # TRACK initial target
   track(tracking, "tac.hcr", cys) <- out
