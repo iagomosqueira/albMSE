@@ -22,3 +22,6 @@ source("utilities.R")
 sourceCpp("utilities/init_pdyn.cpp")
 sourceCpp("utilities/msy_pdyn.cpp")
 sourceCpp("utilities/pdyn_lfcpue.cpp")
+
+# SETUP global progressr handlers
+handlers(global=TRUE)

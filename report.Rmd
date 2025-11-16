@@ -162,6 +162,8 @@ knitr::include_graphics("report/data_sas_catchprops.png")
 
 ## MP Performance
 
+- COMPARE MPs with CC MP
+
 # Discussion
 
 ## Management Implications 

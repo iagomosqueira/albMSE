@@ -12,14 +12,17 @@ library(mseviz)
 
 mkdir("report")
 
-# --- data.R {{{
+# --- data.R 
 
-# -- McMC output
+# -- McMC output {{{
 
 load("data/om5b/mcvars_abc5b.rda")
 
+# }}}
 
-# -- COMPARE SS3 2022-2025
+# -- CONDITIONED OMs
+
+# -- COMPARE SS3 2022-2025 {{{
 
 load('data/base.rda')
 load('data/alb_2025_nw.rda')
@@ -67,8 +70,12 @@ plot(id1_2020, id1_2025) +
     labels=c('2022', '2025'),
     values=c(v1=flpalette[1], v2=flpalette[2]))
 dev.off()
+
+# }}}
  
-# - COMPARE OMs2
+# -- EXTENDED OMs {{{
+
+# - OM5b
 
 load('data/om5b.rda')
 load('data/om5b_updated.rda')
@@ -112,8 +119,9 @@ plot(refpts(om)['SB0',]) +
   ggtitle("Virgin SSB")
 dev.off()
 
+# }}}
 
-# PLOT OM projections
+# -- OM projections {{{
 
 load("data/om5b/fwd_om5b.rda")
 
@@ -126,49 +134,79 @@ dev.off()
 
 # }}}
 
-# --- model.R {{{
+# --- model.R
 
-# LOAD om
-load('data/om5b_updated.rda')
-om <- iter(om5b$om, seq(100))
+iy <- 2024
+ty <- seq(iy + 11, iy + 15)
 
-# LOAD results
-load("model/model_cpue_buffer.rda")
+tperiod <- geom_vline(xintercept=ISOdate(c(ty[1], ty[length(ty)]), 1, 1),
+  linetype=3, linewidth=0.75, alpha=0.8)
 
-# LOAD performance
+# LOAD performance & summaries
+
 perf <- readPerformance()
 
-# PLOT constant catch tuned MP
-taf.png("model_ccatch.png")
-plotMetrics(OM=window(om, end=2023),
-  'Constant catch'=window(om(res[[1]]), start=2023)) +
-  geom_vline(xintercept=ISOdate(c(2034, 2038), 1, 1), linetype=3, alpha=0.8)
-dev.off()
+summ <- getSummary()
 
-# ASSEMBLE dat: mean performance 2034-2038
-dat <- perf[year %in% seq(2034, 2038), .(data=mean(data)),
-  by=.(statistic, name, desc, mp)]
-
-plotBPs(dat)
-
-# PLOT runs
-taf.png("model_buffer_catch.png")
-plotMetrics(OM=window(om, end=2023),
-  'buffer(C~CPUE)'=window(om(res[[2]]), start=2023)) +
-  geom_vline(xintercept=ISOdate(c(2034, 2038), 1, 1), linetype=3, alpha=0.8)
-dev.off()
-
-# PLOT runs
-taf.png("model_runs_compare.png")
-plotMetrics(OM=window(om, end=2023),
-  'Constant catch'=window(om(res[[1]]), start=2023),
-  'buffer(C~CPUE)'=window(om(res[[2]]), start=2023)) +
-  geom_vline(xintercept=ISOdate(c(2034, 2038), 1, 1), linetype=3, alpha=0.8)
-dev.off()
+# -- MP 0: om5b + shortcut.sa + fixedC.hcr 60% Kobe green {{{
 
 # }}}
 
-# RENDER
+# -- MP 1: om5a + cpue.ind(NW) + buffer.hcr(mult~wmean) 60% Kobe green {{{
+
+# PLOT MP run
+
+dat <- perf[om == 'om5b' & mp %in% c("", "om5b_fixedC_tune_kobe60")]
+
+plotTimeSeries(dat) + tperiod
+aplotTimeSeries(dat) + tperiod
+
+dat <- perf[mp == ""]
+
+plotTimeSeries(dat)
+
+# PLOT HCR & future observations TODO: ADD decisions
+plot_buffer.hcr(control(tune)$hcr) +
+  geom_point(data=data.table(met=c(index(observations(oem(tune))$ALB$idx[[1]])), out=0),
+    alpha=0.01)
+
+# PLOT index
+
+plot(observations(oem(tune))$ALB$idx[[1]])
+
+# PLOT Kobe
+
+kobeMPs(dat[mp != ""], x="SBMSY", y="HRMSY") +
+  ylim(0, 2)
+
+# PLOT Kobe time series
+
+kobeTS(dat[statistic %in% c('green', 'red', 'orange', 'yellow') & mp != ""])
+
+dat[statistic %in% c('green', 'red', 'orange', 'yellow') & mp != ""]
+
+
+kobeTS(dat[statistic %in% c('green', 'red', 'orange', 'yellow') & mp != "",
+  .(data=mean(data)), by=.(statistic, year, mp)]) +
+  geom_hline(yintercept=0.6, linetype=2, color='white')
+
+# }}}
+
+# -- MP 00 {{{
+
+# PLOT MP run
+
+# PLOT HCR
+
+# PLOT index
+
+# PLOPT Kobe
+
+# PLOT Kobe time series
+
+# }}}
+
+# --- RENDER
 
 render('report.Rmd', output_dir='report', output_file='report.pdf')
 

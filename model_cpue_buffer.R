@@ -1,5 +1,5 @@
 # model_buffer.R - DESC
-# abc_tuna/v3/model_buffer.R
+# albMSE/model_cpue_buffer.R
 
 # Copyright (c) WMR, 2025.
 # Author: Iago MOSQUEIRA <iago.mosqueira@wur.nl>
@@ -20,86 +20,26 @@ method(projection(om)) <- fwdabc.om
 
 # SETUP
 iy <- 2024
-fy <- 2042
+fy <- 2050
 ty <- seq(iy + 11, iy + 15)
 
 # PLAN
 plan(multicore, workers=10)
 
-# --- 1. TUNE shortcut.sa + fixedC.hcr {{{
-
-# SET control
-ctrl <- mpCtrl(list(
-  # EST
-  est = mseCtrl(method=shortcut.sa),
-  # HCR
-  hcr = mseCtrl(method=fixedC.hcr,
-    args=list(ctrg=catch(om)[,'2024'][[1]]))
-))
-
-# test <- mp(om, oem, ctrl=ctrl, args=list(iy=iy, fy=2026, frq=3), .DEBUG=TRUE)
-
-# TUNE for P(Kobe=green) = 60%
-system.time(
-tune <- tunebisect(om, oem=oem, control=ctrl, args=list(iy=iy, fy=fy, frq=3), 
-  statistic=statistics["green"], metrics=mets, years=iy + c(11, 15),
-  tune=list(ctrg=c(35000, 50000)), prob=0.6, tol=0.01, maxit=12)
-)
-
-# COMPUTE performance
-performance(tune) <- performance(tune, statistics=statistics, metrics=mets,
-  type="fixedC", run="tune_kobe60")
-
-# WRITE to table
-writePerformance(performance(tune))
-
-# STORE in results
-save(tune, file="model/runs/om5b_fixedC_tune_kobe60.rda", compress="xz")
-
-# CHECK Kobe green
-performance(tune)[statistic == 'green' & year %in% ty, mean(data)]
-performance(tune)[statistic == 'green', mean(data), by=year]
-
-# GET tuned C = 40 625 t
-args(control(tune)$hcr)$ctrg
-
-# PLOT
-plot(om, "Constant catch Kobe 60%"=tune) +
-  geom_vline(xintercept=ISOdate(c(ty[1], ty[length(ty)]), 1, 1), linetype=3, alpha=0.8)
-
-# }}}
-
-# --- 2. TUNE cpue.ind + buffer.hcr(mult~zscore) {{{
-
-# EXPLORE NW index to get zscore reference years
-
-load('data/base.rda')
-
-nwi <- Reduce(join, lapply(base$ids[1:4], index))
-
-# NW CPUE years with catch ~ CC tuned value
-ref <- seasonMeans(nwi[, unitSums(seasonSums(catch(base$stk)[, ac(1975:2020)])) < 45000 
-  & unitSums(seasonSums(catch(base$stk)[, ac(1975:2020)])) > 35000])
-
-meanref <- propagate(yearMeans(ref), 100)
-sdref <- propagate(sqrt(yearVars(ref)), 100)
+# --- 1. TUNE cpues.ind + buffer.hcr(mult~wmean) {{{
 
 # SET control
 
 ctrl <- mpCtrl(list(
   # EST
-  est = mseCtrl(method=cpue.ind, args=list(index=1, nyears=4,
-    mean=meanref, sd=sdref)),
+  est = mseCtrl(method=cpue.ind, args=list(index=1, nyears=4)),
   # HCR
   hcr = mseCtrl(method=buffer.hcr,
-    args=list(lim=0.20, bufflow=0.35, buffupp=1.10, sloperatio=0.15,
-      metric="zscore", initac=36458))
+    args=list(lim=0.25, bufflow=0.35, buffupp=0.60, sloperatio=0.10,
+      dlow=0.85, dupp=1.15, metric="wmean", initac=36458))
 ))
 
-# TEST
-tes <- mp(om, oem, control=ctrl, args=list(iy=2024, fy=2033, frq=3), .DEBUG=FALSE)
-
-plot(om, T=tes)
+#  tes <- mp(om, oem, control=ctrl, args=list(iy=2024, fy=2032, frq=3), .DEBUG=FALSE)
 
 # - TUNE for P(Kobe=green) = 60%
 
@@ -111,66 +51,82 @@ tune <- tunebisect(om, oem=oem, control=ctrl, args=list(iy=iy, fy=fy, frq=3),
 
 # COMPUTE performance
 performance(tune) <- performance(tune, statistics=statistics, metrics=mets,
-  type="buffer-zscore", run="kobe60")
+  type="buffer-wmean", run="kobe60")
+
+writePerformance(performance(tune))
+
+# SAVE
+save(tune, file="model/runs/om5b_buffer-wmean_tune_kobe60.rda", compress="xz")
+
+# STORE summary
+appendSummary(tune, mp=unique('om5b_buffer-wmean_tune_kobe60'))
+
 
 # -- CHECK:
 
 # KOBE performance
-performance(tune)[statistic=='green' & year %in% ty, mean(data), by=mp]
+performance(tune)[statistic=='green' & year %in% ty, .(PKg=mean(data)), by=mp]
+performance(tune)[statistic=='green', .(PKg=mean(data)), by=year]
 
 # PLOT time series
-plot(om, K60=tune) +
+p1 <- plot(om, K60=tune) +
   geom_vline(xintercept=ISOdate(c(ty[1], ty[length(ty)]), 1, 1), linetype=3, alpha=0.8)
 
 # PLOT HCR & future observations TODO: ADD decisions
-plot_buffer.hcr(control(tune)$hcr) +
-  geom_point(data=data.table(met=c(index(observations(oem(tune))$ALB$idx[[1]])),
-    out=0), alpha=0.01)
+p2 <- plot_buffer.hcr(control(tune)$hcr) +
+  geom_point(data=data.table(met=c(index(observations(oem(tune))$ALB$idx[[1]])), out=0),
+    alpha=0.01)
 
-# PLOT observed index zscore
-plot(zscore(seasonMeans(index(observations(oem(tune))$ALB$idx[[1]])),
-  mean=meanref, sd=sdref)) +
-  geom_hline(yintercept=c(0.25, 0.50, 1.05), color=c('red', 'black', 'black'),
+# PLOT observed index
+p3 <- plot(seasonMeans(index(observations(oem(tune))$ALB$idx[[1]]))) +
+  geom_hline(yintercept=c(0.25, 0.35, 0.72), color=c('red', 'black', 'black'),
     linetype=c(1,2,2)) +
-  ylab("zscore(CPUE LL1 NW)") + ylim(0, 5)
+  ylab("CPUE LL1 NW") + ylim(0, 1.5)
+
+p1 + (p2 / p3)
+
+# --:
 
 # }}}
 
-# --- 3. TUNE cpues.ind + buffer.hcr(mult~wmean) {{{
+# --- 2. TUNE cpues.ind + buffer.hcr(mult~mean) {{{
 
 # SET control
-
 ctrl <- mpCtrl(list(
   # EST
   est = mseCtrl(method=cpue.ind, args=list(index=1, nyears=4)),
   # HCR
   hcr = mseCtrl(method=buffer.hcr,
-    args=list(lim=0.25, bufflow=0.35, buffupp=1.50, sloperatio=0.20,
-      metric="wmean", initac=42000))
+    args=list(lim=0.25, bufflow=0.35, buffupp=0.60, sloperatio=0.10,
+      dlow=0.85, dupp=1.15, metric="mean", initac=36458))
 ))
 
-# TEST
-tes <- mp(om, oem, control=ctrl, args=list(iy=2024, fy=2029, frq=3), .DEBUG=FALSE)
+# tes <- mp(om, oem, control=ctrl, args=list(iy=2024, fy=2032, frq=3), .DEBUG=FALSE)
 
-performance(tes, statistics=statistics['green'], metrics=mets)[, mean(data), by=year]
-
-performance(tes, statistics=statistics, metrics=mets)
-
-
-performance(tes, statistics=statistics, metrics=mets)[name == 'P(Cdecrease)']
-
-
-# - TUNE for P(Kobe=green) = 60%
-
+# TUNE for P(Kobe=green) = 60%
 system.time(
 tune <- tunebisect(om, oem=oem, control=ctrl, args=list(iy=iy, fy=fy, frq=3),
   statistic=statistics["green"], metrics=mets, years=ty,
-  tune=list(buffupp=c(0.50, 1.5)), prob=0.6, tol=0.01)
+  tune=list(buffupp=c(0.50, 0.75)), prob=0.6, tol=0.01)
 )
+
+# PLOT
+plot(om, mean=tune)
 
 # COMPUTE performance
 performance(tune) <- performance(tune, statistics=statistics, metrics=mets,
-  type="buffer", run="kobe60") #, run="kobe60")
+  type="buffer-wmean", run="kobe60")
+
+# WRITE to performance table
+writePerformance(performance(tune))
+
+# SAVE
+save(tune, file="model/runs/om5b_buffer-mean_tune_kobe60.rda", compress="xz")
+
+# STORE summary
+appendSummary(tune, mp=unique('om5b_buffer-mean_tune_kobe60'))
+
+# -- CHECK:
 
 # KOBE performance
 performance(tune)[statistic=='green' & year %in% ty, mean(data), by=mp]
@@ -192,4 +148,58 @@ plot(seasonMeans(index(observations(oem(tune))$ALB$idx[[1]]))) +
 
 # }}}
 
-# --- 4. TUNE cpue.ind + buffer.hcr(C~zscore) 
+# --- ROBUSTNESS runs {{{
+
+# LOAD run
+load('model/runs/om5b_buffer-wmean_tune_kobe60.rda')
+
+# or LOAD summary
+
+qs_readm("data/om5a.qs2")
+
+tes1 <- mp(om, oem, control=control(tune), args=list(iy=2024, fy=2050, frq=3))
+
+qs_readm("data/om6b.qs2")
+
+tes2 <- mp(om, oem, control=control(tune), args=list(iy=2024, fy=2050, frq=3))
+
+plot(om, TUNE=tune, T1=tes[[1]], T2=tes[[2]])
+
+tes <- FLmses(list('kobe60-om5a-robust'=tes1, 'kobe60-om6b-robust'=tes2),
+  statistics=statistics, metrics=mets, type="buffer-wmean")
+
+save(tes, file="model/runs/om5b_buffer-wmean_kobe60-robust.rda", compress="xz")
+
+writePerformance(performance(tes))
+
+# PLOT from performance
+
+library(mseviz)
+
+perf <- readPerformance()
+
+# BUG: REMOVE very large HRMSY for plots
+perf[statistic == "HRMSY", data:=ifelse(data > 3, 3, data)]
+
+# RE-LABEL performance elements
+perf <- labelPerformance(perf, labels=list(
+  'om5b'='OM base',
+  'om6b'='OM 1% Q',
+  'om5a'='OM SW',
+  'om5a_buffer-wmean_kobe60-om5a-robust'="Robust SW",
+  'om5b_buffer-wmean_kobe60'="Tuned Kobe 60%",
+  'om6b_buffer-wmean_kobe60-om6b-robust'="Robust 1% LL Q"))
+
+plotTimeSeries(perf)
+
+#
+tun <- periodsPerformance(perf, list(tune=2034:2038))
+
+plotBPs(tun, c("C", "SBMSY", "HRMSY", "IACC", "green"), show.mean=c('green'))
+
+plotTOs(tun, x="C", y=c("SBMSY", "HRMSY", "IACC", "green"))
+
+kobeMPs(tun,x = "SBMSY", y = "HRMSY", probs = c(0.25, 0.50, 0.75)) +
+  ylab(expression(HR/HR[MSY]))
+
+# }}}

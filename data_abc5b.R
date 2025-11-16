@@ -320,13 +320,15 @@ save(om, oem, file='data/om5b/om5b-raw.rda', compress='xz')
 load('data/om5b/om5b-raw.rda')
 load('data/om5b/mcout_abc5b.rda')
 
-om <- fwdWindow(om, end=2045)
+fy <- 2050
 
-# SET future deviances (2021:2045) BUT 2010:2023?
-deviances(om)[, ac(2021:2045),,4] <- rlnormar1(n=dims(om)$it, meanlog=0, 
-  sdlog=out$sigmar, rho=out$rho, years=2021:2045)
+om <- fwdWindow(om, end=fy)
 
-oem <- fwdWindow(oem, end=2045)
+# SET future deviances (2021:fy) BUT 2010:2023?
+deviances(om)[, ac(2021:fy),,4] <- rlnormar1(n=dims(om)$it, meanlog=0, 
+  sdlog=out$sigmar, rho=out$rho, years=2021:fy)
+
+oem <- fwdWindow(oem, end=fy)
 
 # SAVE
 save(om, oem, file='data/om5b/om5b_extended.rda', compress='xz')
@@ -343,15 +345,21 @@ ctrl <- fwdControl(year=2010:2024, quant="catch",
   value=nominal_catch[year >=2010, catch])
 
 # UPDATE using fwdabc.om
-system.time(
-hind_om <- fwdabc.om(om, ctrl, pcbar=args(projection(om))$pcbar,
-  pla=args(projection(om))$pla, verbose=TRUE)$om
-)
+library(parallel)
+
+it <- 500
+ncore <- 10
+
+hind_om <- Reduce(combine, mclapply(split(seq(it), rep(seq(ncore), each=it/ncore)), 
+  function(i) {
+    fwdabc.om(iter(om, i), ctrl, pcbar=args(projection(om))$pcbar,
+    pla=args(projection(om))$pla, verbose=TRUE)$om
+  }, mc.cores=ncore))
 
 # COMPUTE estimated index
 ihat <- survey(stock(hind_om)[[1]], observations(oem)$ALB$idx[[1]])
 
-# PLOT obs vs. pred
+# CHECK: PLOT obs vs. pred
 plot(index(observations(oem)$ALB$idx[[1]])[, ac(2000:2024)],
   index(ihat)[, ac(2000:2024)])
 
@@ -366,7 +374,7 @@ rhi <- rho(cpue_resid[, ac(2000:2020)])
 # GENERATE deviances
 cpue_devs <- rlnormar1(n=dims(om)$it, meanlog=0, sdlog=sdi, rho=rhi, years=1:60)
 
-# PLOT
+# CHECK: PLOT
 plot(iter(cpue_devs, seq(9))) +
   facet_wrap(~iter) + ylim(0, NA)
 
@@ -376,11 +384,12 @@ cpue_ydevs <- index(ihat)[, ac(2010:2024)] %=% 1
 for(i in seq(0, dim(cpue_ydevs)[2] - 1))
   cpue_ydevs[, i+1, ] <- cpue_devs[, i * 4 + 1:4]
 
+# CHECK: PLOT
 plot(cpue_ydevs)
 
 plot(index(ihat)[, ac(2000:2024)], index(ihat)[, ac(2010:2024)] * cpue_ydevs)
 
-# PLOT obs vs. pred
+# CHECK:PLOT obs vs. pred
 plot(index(observations(oem)$ALB$idx[[1]])[, ac(2000:2024)],
   index(ihat)[, ac(2000:2024)],
   index(ihat)[, ac(2010:2024)] * cpue_ydevs)
@@ -390,14 +399,20 @@ plot(index(observations(oem)$ALB$idx[[1]])[, ac(2000:2024),,,,1:12],
   index(ihat)[, ac(2010:2024),,,,1:12] * cpue_ydevs[,,,,,1:12]) +
   facet_wrap(~iter)
 
-# UPDATE oem indices
+# UPDATE oem indices 2021-2024
+index(ihat)[, ac(2021:2024)] <- index(ihat)[, ac(2021:2024)] * cpue_ydevs[, ac(2021:2024)]
 
-index(ihat)[, ac(2010:2024)] <- index(ihat)[, ac(2010:2024)] * cpue_ydevs
+observations(oem)$ALB$idx[[1]][, ac(2021:2024)] <- ihat[, ac(2021:2024)]
 
-observations(oem)$ALB$idx[[1]] <- ihat
+# CHECK:PLOT updated index
+plot(index(observations(oem)$ALB$idx[[1]])[, ac(2000:2024)])
+
+plot(index(observations(oem)$ALB$idx[[1]])[, ac(2000:2024),,,, 1:12]) +
+  facet_wrap(~iter) +
+  geom_vline(xintercept=ISOdate(2021, 1, 1), linetype=3)
 
 # UPDATE oem stock
-observations(oem)$ALB$stk[, ac(2010:2024)] <- stock(nom)[[1]][, ac(2010:2024)]
+observations(oem)$ALB$stk[, ac(2010:2024)] <- stock(hind_om)[[1]][, ac(2010:2024)]
 
 # UPDATE om
 om <- hind_om
@@ -419,45 +434,44 @@ oem <- iter(oem, seq(100))
 # SAVE as qs2 (faster)
 qs_savem(om, oem, file='data/om5b.qs2')
 
-# STORE in db
-writePerformance(performance(om, statistics[c("SB", "SB0", "SBMSY", "R", "HRMSY", "C")],
-  metrics=mets, years=2000:2024), overwrite=TRUE)
-
 # }}}
 
 # --- PROJECTIONS {{{
 
 qs_readm(om, oem, file='model/om5b.qs2')
 
-performance(window(om, end=2024), statistics=statistics['green'],
-  metrics=mets)[, .(Pgreen=mean(data)), by=year]
+it <- 100
+ncore <- 10
 
 # FWD(C=C0) 
 
-ctrl <- fwdControl(year=2025:2045, biol=1, quant='catch', value=0)
+ctrl <- fwdControl(year=2025:fy, biol=1, quant='catch', value=0)
 
-system.time(
-fom_c0 <- fwdabc.om(om, ctrl, pcbar=args(projection(om))$pcbar,
-  pla=args(projection(om))$pla, verbose=TRUE)$om
-)
+fom_c0 <- Reduce(combine, mclapply(split(seq(it), rep(seq(ncore), each=it/ncore)), 
+  function(i) {
+    fwdabc.om(iter(om, i), ctrl, pcbar=args(projection(om))$pcbar,
+    pla=args(projection(om))$pla, verbose=TRUE)$om
+  }, mc.cores=ncore))
 
 # FWD(C=C2024) 
 
-ctrl <- fwdControl(year=2025:2045, biol=1, quant='catch', value=catch(om)[,'2024'][[1]])
+ctrl <- fwdControl(year=2025:fy, biol=1, quant='catch', value=catch(om)[,'2024'][[1]])
 
-system.time(
-fom_c2024 <- fwdabc.om(om, ctrl, pcbar=args(projection(om))$pcbar,
-  pla=args(projection(om))$pla, verbose=TRUE)$om
-)
+fom_c2024 <- Reduce(combine, mclapply(split(seq(it), rep(seq(ncore), each=it/ncore)), 
+  function(i) {
+    fwdabc.om(iter(om, i), ctrl, pcbar=args(projection(om))$pcbar,
+    pla=args(projection(om))$pla, verbose=TRUE)$om
+  }, mc.cores=ncore))
 
 # FWD(C=MSY2025) 
 
-ctrl <- fwdControl(year=2024:2045, biol=1, quant='catch', value=ss25$rps$MSY)
+ctrl <- fwdControl(year=2024:fy, biol=1, quant='catch', value=ss25$rps$MSY)
 
-system.time(
-fom_cmsy <- fwdabc.om(om, ctrl, pcbar=args(projection(om))$pcbar,
-  pla=args(projection(om))$pla, verbose=TRUE)$om
-)
+fom_cmsy <- Reduce(combine, mclapply(split(seq(it), rep(seq(ncore), each=it/ncore)), 
+  function(i) {
+    fwdabc.om(iter(om, i), ctrl, pcbar=args(projection(om))$pcbar,
+    pla=args(projection(om))$pla, verbose=TRUE)$om
+  }, mc.cores=ncore))
 
 # SAVE
 fom <- list(C2024=fom_c2024, C0=fom_c0, MSY=fom_cmsy)

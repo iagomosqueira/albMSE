@@ -2580,9 +2580,11 @@ timeMeans <- function(x)
 zscore <- function(x, mean=yearMeans(x), sd=sqrt(yearVars(x)))
   exp((x %-% mean) %/% sd)
 
+
 buffer.hcr <- function(stk, ind, metric='zscore',
-  target=1, width=0.5, lim=max(target * 0.10, target - 2 * width), scale=lastcatch,
-  bufflow=max(lim * 1.50, target - width), buffupp=target + width, sloperatio=0.15,
+  target=1, width=0.5, lim=max(target * 0.10, target - 2 * width), 
+  bufflow=max(lim * 1.50, target - width), buffupp=target + width,
+  sloperatio=0.15, scale=lastcatch,
   initac=NULL, dupp=NULL, dlow=NULL, all=TRUE, ..., args, tracking) {
 
   # EXTRACT args
@@ -2600,17 +2602,20 @@ buffer.hcr <- function(stk, ind, metric='zscore',
   # COMPUTE and window metric
   met <- mse::selectMetric(metric, stk, ind)
   met <- window(met, start=dy, end=dy)
+
+  # COMPUTE gradient of decrease
+  dgradient <- (1 - 2^(-1))/(bufflow - lim)
   
   # COMPUTE HCR multiplier if ...
   # BELOW lim
   hcrm <- ifelse(met <= lim, ((met / lim) ^ 2) / 2,
     # BETWEEN lim and bufflow
-    ifelse(met < bufflow,
+    ifelse(met <= bufflow,
       (0.5 * (1 + (met - lim) / (bufflow - lim))),
     # BETWEEN bufflow and buffupp
     ifelse(met < buffupp, 1, 
-    # ABOVE buffupp
-      1 + sloperatio * 1 / (2 * (bufflow - lim)) * (met - buffupp))))
+    # ABOVE buffupp, as proportion of dgradient
+      1 + sloperatio * dgradient * (met - buffupp))))
 
   # TRACK decision
   dec <- ifelse(met <= lim, 1,
@@ -2640,18 +2645,18 @@ buffer.hcr <- function(stk, ind, metric='zscore',
   # APPLY limits, always or if met < trigger
   if(!is.null(dupp)) {
     if(all) {
-      out[out > pre * dupp] <- pre[out > pre * dupp] * dupp
+      out[out > lastcatch * dupp] <- lastcatch[out > lastcatch * dupp] * dupp
     } else {
-      out[out > pre * dupp & met < bufflow] <- pre[out > pre * dupp & met <
+      out[out > lastcatch * dupp & met < bufflow] <- lastcatch[out > lastcatch * dupp & met <
         bufflow] * dupp
     }
   }
 
   if(!is.null(dlow)) {
     if(all) {
-      out[out < pre * dlow] <- pre[out < pre * dlow] * dlow
+      out[out < lastcatch * dlow] <- lastcatch[out < lastcatch * dlow] * dlow
     } else {
-      out[out < pre * dlow & met < bufflow] <- pre[out < pre * dlow & met <
+      out[out < lastcatch * dlow & met < bufflow] <- lastcatch[out < lastcatch * dlow & met <
         bufflow] * dlow
     }
   }
@@ -2691,20 +2696,25 @@ plot_buffer.hcr <- function(args, obs="missing", alpha=0.3,
   # SET met values
   met <- seq(0, xlim, length=200)
 
+  # COMPUTE gradient of decrease
+  dgradient <- (1 - 2^(-1))/(bufflow - lim)
+
+  # COMPUTE HCR multiplier if ...
+
   # BELOW lim
   out <- ifelse(met <= lim, ((met / lim) ^ 2) / 2,
     # BETWEEN lim and bufflow
-    ifelse(met < bufflow,
+    ifelse(met <= bufflow,
       (0.5 * (1 + (met - lim) / (bufflow - lim))),
     # BETWEEN bufflow and buffupp
     ifelse(met < buffupp, 1, 
-    # ABOVE buffupp
-      1 + sloperatio * 1 / (2 * (bufflow - lim)) * (met - buffupp))))
+    # ABOVE buffupp, as proportion of dgradient
+      1 + sloperatio * dgradient * (met - buffupp))))
 
   # DATA
   # TODO: ADD 'set'
   dat <- data.frame(met=met, out=out)
-
+  
   # TODO:
   scale <- 1
   
@@ -2893,6 +2903,50 @@ cpue.ind <- function(stk, idx, index=1, nyears=5, mean=yearMeans(index(idx)[[ind
   track(tracking, "zscore.ind", ac(ay)) <- score
 
   return(list(stk=stk, ind=ind, tracking=tracking, cpue=met))
+
+}
+# }}}
+
+# MP summaries {{{
+
+appendSummary <- function(x, mp, file="model/summaries.rda") {
+
+  # CREATE list if file missing
+  if(!file.exists(file)) {
+  
+    summaries <- vector('list', length=0)
+  
+    save(summaries, file=file, compress='xz')
+  }
+
+  # LOAD file
+  summaries <- mget(load(file, envir = (NE. <- new.env()), verbose = FALSE),
+    envir = NE.)$summaries
+
+  # EXTRACT elements
+  dat <- list(control=control(x), tracking=tracking(x), args=args(x)) 
+
+  # APPEND x at res[[mp]]
+  summaries[[mp]] <- dat
+
+  # SAVE
+  save(summaries, file=file, compress='xz')
+}
+
+getSummary <- function(file="model/summaries.rda", mp=NULL) {
+
+  # LOAD file
+  summaries <- mget(load(file, envir = (NE. <- new.env()), verbose = FALSE),
+    envir = NE.)$summaries
+
+  # SUBSET
+  if(!is.null(mp))
+    if(length(mp) == 1)
+      summaries <- summaries[[mp]]
+    else
+      summaries <- summaries[mp]
+
+  return(summaries)
 
 }
 # }}}
