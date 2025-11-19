@@ -9,8 +9,11 @@
 
 source("config.R")
 
-# LOAD 100 iter objects
-qs_readm("data/om5b.qs2")
+# LOAD 100 iter objects list(om, oem)
+om5b <- readRDS("data/om5b.rds")
+
+# SPREAD list into workspace
+spread(om5b)
 
 # BUG: EMPTY future index to check values
 index(observations(oem)$ALB$idx[[1]])[, ac(2025:2045)] <- NA
@@ -26,7 +29,7 @@ ty <- seq(iy + 11, iy + 15)
 # PLAN
 plan(multicore, workers=10)
 
-# --- 1. TUNE cpues.ind + buffer.hcr(mult~wmean) {{{
+# --- 1. TUNE cpue.ind + buffer.hcr(mult~wmean) {{{
 
 # SET control
 
@@ -39,7 +42,26 @@ ctrl <- mpCtrl(list(
       dlow=0.85, dupp=1.15, metric="wmean", initac=36458))
 ))
 
-#  tes <- mp(om, oem, control=ctrl, args=list(iy=2024, fy=2032, frq=3), .DEBUG=FALSE)
+system.time(
+tes <- mp(om, oem=oem, control=ctrl, args=list(iy=iy, fy=fy, frq=3))
+)
+  
+# - EXPLORE grid
+
+combs <- combinations(lim=0.10,
+  bufflow=seq(0.20, 0.35, by=0.05),
+  buffupp=seq(0.50, 0.65, by=0.05),
+  sloperatio=c(0.10, 0.20))
+
+explore <- mps(om, oem=oem, control=ctrl, args=list(iy=iy, fy=fy, frq=3),
+  hcr=combs, parallel=FALSE)
+
+performance(explore) <- performance(explore, statistics=statistics, metrics=mets,
+  type="buffer-wmean")
+
+perf <- performance(explore)
+
+save(perf, file='model/explore_performance.rda')
 
 # - TUNE for P(Kobe=green) = 60%
 
@@ -49,6 +71,9 @@ tune <- tunebisect(om, oem=oem, control=ctrl, args=list(iy=iy, fy=fy, frq=3),
   tune=list(buffupp=c(0.50, 0.75)), prob=0.6, tol=0.01)
 )
 
+# PLOT
+plot(om, kobe60=tune)
+
 # COMPUTE performance
 performance(tune) <- performance(tune, statistics=statistics, metrics=mets,
   type="buffer-wmean", run="kobe60")
@@ -56,40 +81,32 @@ performance(tune) <- performance(tune, statistics=statistics, metrics=mets,
 writePerformance(performance(tune))
 
 # SAVE
-save(tune, file="model/runs/om5b_buffer-wmean_tune_kobe60.rda", compress="xz")
+saveRDS(tune, file="model/runs/om5b_buffer-wmean_tune_kobe60.rds")
 
-# STORE summary
-appendSummary(tune, mp=unique('om5b_buffer-wmean_tune_kobe60'))
+# - TUNE for P(Kobe=green) = 70%
 
+system.time(
+tune <- tunebisect(om, oem=oem, control=ctrl, args=list(iy=iy, fy=fy, frq=3),
+  statistic=statistics["green"], metrics=mets, years=ty,
+  tune=list(buffupp=c(0.50, 0.75)), prob=0.7, tol=0.01)
+)
 
-# -- CHECK:
+# PLOT
+plot(om, kobe70=tune)
 
-# KOBE performance
-performance(tune)[statistic=='green' & year %in% ty, .(PKg=mean(data)), by=mp]
-performance(tune)[statistic=='green', .(PKg=mean(data)), by=year]
+# COMPUTE performance
+performance(tune) <- performance(tune, statistics=statistics, metrics=mets,
+  type="buffer-wmean", run="kobe70")
 
-# PLOT time series
-p1 <- plot(om, K60=tune) +
-  geom_vline(xintercept=ISOdate(c(ty[1], ty[length(ty)]), 1, 1), linetype=3, alpha=0.8)
+# WRITE to db
+writePerformance(performance(tune))
 
-# PLOT HCR & future observations TODO: ADD decisions
-p2 <- plot_buffer.hcr(control(tune)$hcr) +
-  geom_point(data=data.table(met=c(index(observations(oem(tune))$ALB$idx[[1]])), out=0),
-    alpha=0.01)
-
-# PLOT observed index
-p3 <- plot(seasonMeans(index(observations(oem(tune))$ALB$idx[[1]]))) +
-  geom_hline(yintercept=c(0.25, 0.35, 0.72), color=c('red', 'black', 'black'),
-    linetype=c(1,2,2)) +
-  ylab("CPUE LL1 NW") + ylim(0, 1.5)
-
-p1 + (p2 / p3)
-
-# --:
+# SAVE
+saveRDS(tune, file="model/runs/om5b_buffer-wmean_tune_kobe70.rds")
 
 # }}}
 
-# --- 2. TUNE cpues.ind + buffer.hcr(mult~mean) {{{
+# --- 2. TUNE cpue.ind + buffer.hcr(mult~mean) {{{
 
 # SET control
 ctrl <- mpCtrl(list(
@@ -121,85 +138,46 @@ performance(tune) <- performance(tune, statistics=statistics, metrics=mets,
 writePerformance(performance(tune))
 
 # SAVE
-save(tune, file="model/runs/om5b_buffer-mean_tune_kobe60.rda", compress="xz")
-
-# STORE summary
-appendSummary(tune, mp=unique('om5b_buffer-mean_tune_kobe60'))
-
-# -- CHECK:
-
-# KOBE performance
-performance(tune)[statistic=='green' & year %in% ty, mean(data), by=mp]
-
-# PLOT time series
-plot(om, K60=tune) +
-  geom_vline(xintercept=ISOdate(c(ty[1], ty[length(ty)]), 1, 1), linetype=3, alpha=0.8)
-
-# PLOT HCR & future observations TODO: ADD decisions
-plot_buffer.hcr(control(tune)$hcr) +
-  geom_point(data=data.table(met=c(index(observations(oem(tune))$ALB$idx[[1]])), out=0),
-    alpha=0.01)
-
-# PLOT observed index
-plot(seasonMeans(index(observations(oem(tune))$ALB$idx[[1]]))) +
-  geom_hline(yintercept=c(0.25, 0.35, 0.72), color=c('red', 'black', 'black'),
-    linetype=c(1,2,2)) +
-  ylab("zscore(CPUE LL1 NW)") + ylim(0, 1.5)
+saveRDS(tune, file="model/runs/om5b_buffer-mean_tune_kobe60.rds")
 
 # }}}
 
-# --- ROBUSTNESS runs {{{
+# --- 3. ROBUSTNESS runs cpue.ind + buffer.hcr(mult~wmean) {{{
+
+# -- kobe60
 
 # LOAD run
-load('model/runs/om5b_buffer-wmean_tune_kobe60.rda')
+run <- readRDS("model/runs/om5b_buffer-wmean_tune_kobe60.rds")
 
-# or LOAD summary
+# - OM5a
 
-qs_readm("data/om5a.qs2")
+# LOAD om
+om5a <- readRDS("data/om5a.rds")
 
-tes1 <- mp(om, oem, control=control(tune), args=list(iy=2024, fy=2050, frq=3))
+# RUN mp
+rob5a <- mp(om5a$om, om5a$oem, control=control(run), args=args(run))
 
-qs_readm("data/om6b.qs2")
+# PLOT
+plot(om, TUNE=run, ROB5a=rob5a)
 
-tes2 <- mp(om, oem, control=control(tune), args=list(iy=2024, fy=2050, frq=3))
+# - OM6b
 
-plot(om, TUNE=tune, T1=tes[[1]], T2=tes[[2]])
+# LOAD om
+om6b <- readRDS("data/om6b.rds")
 
-tes <- FLmses(list('kobe60-om5a-robust'=tes1, 'kobe60-om6b-robust'=tes2),
+# RUN mp
+rob6b <- mp(om6b$om, om6b$oem, control=control(run), args=args(run))
+
+# PLOT
+plot(om, TUNE=run, ROB5a=rob5a, ROB6b=rob6b)
+
+# - SAVE
+
+rob <- FLmses(list('kobe60-om5a-robust'=rob5a, 'kobe60-om6b-robust'=rob6b),
   statistics=statistics, metrics=mets, type="buffer-wmean")
 
-save(tes, file="model/runs/om5b_buffer-wmean_kobe60-robust.rda", compress="xz")
+saveRDS(rob, file="model/runs/om5b_buffer-wmean_robust_kobe60.rds")
 
-writePerformance(performance(tes))
-
-# PLOT from performance
-
-library(mseviz)
-
-perf <- readPerformance()
-
-# BUG: REMOVE very large HRMSY for plots
-perf[statistic == "HRMSY", data:=ifelse(data > 3, 3, data)]
-
-# RE-LABEL performance elements
-perf <- labelPerformance(perf, labels=list(
-  'om5b'='OM base',
-  'om6b'='OM 1% Q',
-  'om5a'='OM SW',
-  'om5a_buffer-wmean_kobe60-om5a-robust'="Robust SW",
-  'om5b_buffer-wmean_kobe60'="Tuned Kobe 60%",
-  'om6b_buffer-wmean_kobe60-om6b-robust'="Robust 1% LL Q"))
-
-plotTimeSeries(perf)
-
-#
-tun <- periodsPerformance(perf, list(tune=2034:2038))
-
-plotBPs(tun, c("C", "SBMSY", "HRMSY", "IACC", "green"), show.mean=c('green'))
-
-plotTOs(tun, x="C", y=c("SBMSY", "HRMSY", "IACC", "green"))
-
-kobeMPs(tun,x = "SBMSY", y = "HRMSY", probs = c(0.25, 0.50, 0.75)) +
-  ylab(expression(HR/HR[MSY]))
+writePerformance(rob)
 
 # }}}

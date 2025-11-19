@@ -9,8 +9,11 @@
 
 source("config.R")
 
-# LOAD 100 iter objects
-qs_readm("data/om5b.qs2")
+# LOAD 100 iter objects list(om, oem)
+om5b <- readRDS("data/om5b.rds")
+
+# SPREAD list into workspace
+spread(om5b)
 
 # BUG: EMPTY future index to check values
 index(observations(oem)$ALB$idx[[1]])[, ac(2025:2045)] <- NA
@@ -20,7 +23,7 @@ method(projection(om)) <- fwdabc.om
 
 # SETUP
 iy <- 2024
-fy <- 2042
+fy <- 2050
 ty <- seq(iy + 11, iy + 15)
 
 # PLAN
@@ -46,6 +49,9 @@ tune <- tunebisect(om, oem=oem, control=ctrl, args=list(iy=iy, fy=fy, frq=3),
   tune=list(ctrg=c(35000, 50000)), prob=0.6, tol=0.01, maxit=12)
 )
 
+# PLOT
+plot(om, cc=tune)
+
 # COMPUTE performance
 performance(tune) <- performance(tune, statistics=statistics, metrics=mets,
   type="fixedC", run="tune_kobe60")
@@ -54,17 +60,9 @@ performance(tune) <- performance(tune, statistics=statistics, metrics=mets,
 writePerformance(performance(tune))
 
 # SAVE
-save(tune, file="model/runs/om5b_fixedC_tune_kobe60.rda", compress="xz")
-
-# STORE summary
-appendSummary(tune, mp=unique('om5b_fixedC_tune_kobe60'))
+saveRDS(tune, file="model/runs/om5b_buffer-mean_tune_kobe60.rds")
 
 # GET tuned C = 40 625 t
 args(control(tune)$hcr)$ctrg
-
-# PLOT
-plot(om, "Constant catch Kobe 60%"=tune) +
-  geom_vline(xintercept=ISOdate(c(ty[1], ty[length(ty)]), 1, 1),
-    size=0.75, linetype=3, alpha=0.8)
 
 # }}}

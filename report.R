@@ -12,6 +12,17 @@ library(mseviz)
 
 mkdir("report")
 
+# TIMING
+iy <- 2024
+ty <- seq(iy + 11, iy + 15)
+
+# VLINES for tuning years (ty)
+tperiod <- geom_vline(xintercept=ISOdate(c(ty[1], ty[length(ty)]), 1, 1),
+  linetype=3, linewidth=0.75, alpha=0.8)
+
+# SELECT iters for plots worms
+worms <- sample(100, 5)
+
 # --- data.R 
 
 # -- McMC output {{{
@@ -136,46 +147,41 @@ dev.off()
 
 # --- model.R
 
-iy <- 2024
-ty <- seq(iy + 11, iy + 15)
-
-tperiod <- geom_vline(xintercept=ISOdate(c(ty[1], ty[length(ty)]), 1, 1),
-  linetype=3, linewidth=0.75, alpha=0.8)
-
-# LOAD performance & summaries
-
-perf <- readPerformance()
-
-summ <- getSummary()
+# LOAD performance
+perf <- readPerformance(file="output/performance.dat.gz")
 
 # -- MP 0: om5b + shortcut.sa + fixedC.hcr 60% Kobe green {{{
+
+# GET dataset
+dat <- perf[om == 'om5b' & mp %in% c("", "om5b_fixedC_tune_kobe60")]
+
+# PLOT MP run
+taf.png("om5b_fixedC_tune_kobe60-timeseries.png")
+plotTimeSeries(dat, statistics = c("SB", "R", "C", "HRMSY"), worms=TRUE) +
+  tperiod
+dev.off()
 
 # }}}
 
 # -- MP 1: om5a + cpue.ind(NW) + buffer.hcr(mult~wmean) 60% Kobe green {{{
 
+# GET results
+dat <- perf[om == 'om5b' & mp %in% c("", "om5b_buffer-wmean_kobe60")]
+
+load('model/runs/om5b_buffer-wmean_tune_kobe60.rda')
+
 # PLOT MP run
-
-dat <- perf[om == 'om5b' & mp %in% c("", "om5b_fixedC_tune_kobe60")]
-
-plotTimeSeries(dat) + tperiod
-aplotTimeSeries(dat) + tperiod
-
-dat <- perf[mp == ""]
-
-plotTimeSeries(dat)
+plotTimeSeries(dat, iters=worms) + tperiod
 
 # PLOT HCR & future observations TODO: ADD decisions
-plot_buffer.hcr(control(tune)$hcr) +
+plot_buffer.hcr(sat$control$hcr, xlim=1.5) +
   geom_point(data=data.table(met=c(index(observations(oem(tune))$ALB$idx[[1]])), out=0),
     alpha=0.01)
 
 # PLOT index
-
 plot(observations(oem(tune))$ALB$idx[[1]])
 
 # PLOT Kobe
-
 kobeMPs(dat[mp != ""], x="SBMSY", y="HRMSY") +
   ylim(0, 2)
 
@@ -184,7 +190,6 @@ kobeMPs(dat[mp != ""], x="SBMSY", y="HRMSY") +
 kobeTS(dat[statistic %in% c('green', 'red', 'orange', 'yellow') & mp != ""])
 
 dat[statistic %in% c('green', 'red', 'orange', 'yellow') & mp != ""]
-
 
 kobeTS(dat[statistic %in% c('green', 'red', 'orange', 'yellow') & mp != "",
   .(data=mean(data)), by=.(statistic, year, mp)]) +

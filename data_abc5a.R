@@ -422,18 +422,23 @@ load('data/om5a/om5a_updated.rda')
 om <- iter(om, seq(100))
 oem <- iter(oem, seq(100))
 
-# SAVE as qs2 (faster)
-qs_savem(om, oem, file='data/om5a.qs2')
+# CREATE list with 100 iters
+om5a <- list(om=om oem=oem)
+
+# SAVE as rds
+saveRDS(om5a, file='data/om5a.rds')
 
 # STORE in db
-writePerformance(performance(om, statistics[c("SB", "SB0", "SBMSY", "R", "HRMSY", "C")],
+writePerformance(performance(om,
+  statistics[c("SB", "SB0", "SBMSY", "R", "HRMSY", "C")],
   metrics=mets, years=2000:2024))
 
 # }}}
 
 # --- PROJECTIONS {{{
 
-qs_readm(om, oem, file='model/om5a.qs2')
+om5a <- readRDS('data/om5a.rds')
+om <- om5a$om
 
 performance(window(om, end=2024), statistics=statistics['green'],
   metrics=mets)[, .(Pgreen=mean(data)), by=year]

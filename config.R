@@ -15,7 +15,6 @@ library(Rcpp)
 library(mvtnorm)
 library(parallel)
 library(ggh4x)
-library(qs2)
 
 source("utilities.R")
 

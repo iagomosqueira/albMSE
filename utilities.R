@@ -158,7 +158,7 @@ mc.output <- function(x, C) {
 }
 # }}}
 
-# FUNCTIONS {{{
+# functions {{{
 
 logit <- function(x){
   return(log(x/(1-x)))
@@ -2572,237 +2572,9 @@ statistics <- list(
 
 # }}}
 
-# buffer.hcr {{{
-
-timeMeans <- function(x)
-  seasonMeans(yearMeans(x))
-
-zscore <- function(x, mean=yearMeans(x), sd=sqrt(yearVars(x)))
-  exp((x %-% mean) %/% sd)
-
-
-buffer.hcr <- function(stk, ind, metric='zscore',
-  target=1, width=0.5, lim=max(target * 0.10, target - 2 * width), 
-  bufflow=max(lim * 1.50, target - width), buffupp=target + width,
-  sloperatio=0.15, scale=lastcatch,
-  initac=NULL, dupp=NULL, dlow=NULL, all=TRUE, ..., args, tracking) {
-
-  # EXTRACT args
-  ay <- args$ay
-  iy <- args$iy
-  data_lag <- args$data_lag
-  man_lag <- args$management_lag
-  frq <- args$frq
-
-  # SET data year
-  dy <- ay - data_lag
-  # SET control years
-  cys <- seq(ay + man_lag, ay + man_lag + frq - 1)
-
-  # COMPUTE and window metric
-  met <- mse::selectMetric(metric, stk, ind)
-  met <- window(met, start=dy, end=dy)
-
-  # COMPUTE gradient of decrease
-  dgradient <- (1 - 2^(-1))/(bufflow - lim)
-  
-  # COMPUTE HCR multiplier if ...
-  # BELOW lim
-  hcrm <- ifelse(met <= lim, ((met / lim) ^ 2) / 2,
-    # BETWEEN lim and bufflow
-    ifelse(met <= bufflow,
-      (0.5 * (1 + (met - lim) / (bufflow - lim))),
-    # BETWEEN bufflow and buffupp
-    ifelse(met < buffupp, 1, 
-    # ABOVE buffupp, as proportion of dgradient
-      1 + sloperatio * dgradient * (met - buffupp))))
-
-  # TRACK decision
-  dec <- ifelse(met <= lim, 1,
-   ifelse(met < bufflow, 2,
-    ifelse(met < buffupp, 3, 4)))
-
-  # track(tracking, "decision.hcr", cys) <- dec
-
-  # GET initial TAC,
-  if(!is.null(initac) & ay == iy) {
-    lastcatch <- FLQuant(initac, iter=args$it)
-  # previous TAC, or
-  } else {
-    # DEBUG: tracking has copies by season, TURN annual?
-    lastcatch <- tracking[[1]]['hcr', ac(ay),,1]
-    # previous catch
-    if(all(is.na(lastcatch)))
-      lastcatch <- unitSums(areaSums(seasonSums(catch(stk)[, ac(ay - args$data_lag)])))
-  }
-
-  # SET TAC
-  out <- scale * hcrm
-
-  # TRACK initial target
-  track(tracking, "tac.hcr", cys) <- out
-
-  # APPLY limits, always or if met < trigger
-  if(!is.null(dupp)) {
-    if(all) {
-      out[out > lastcatch * dupp] <- lastcatch[out > lastcatch * dupp] * dupp
-    } else {
-      out[out > lastcatch * dupp & met < bufflow] <- lastcatch[out > lastcatch * dupp & met <
-        bufflow] * dupp
-    }
-  }
-
-  if(!is.null(dlow)) {
-    if(all) {
-      out[out < lastcatch * dlow] <- lastcatch[out < lastcatch * dlow] * dlow
-    } else {
-      out[out < lastcatch * dlow & met < bufflow] <- lastcatch[out < lastcatch * dlow & met <
-        bufflow] * dlow
-    }
-  }
-
-  # CONTROL
-  ctrl <- fwdControl(
-    # TARGET for frq years
-    c(lapply(cys, function(x) list(quant="catch", value=c(out), year=x)))
-  )
-	
-  list(ctrl=ctrl, tracking=tracking)
-}
-# }}}
-
-# plot_buffer.hcr {{{
-
-plot_buffer.hcr <- function(args, obs="missing", alpha=0.3,
-  labels=c(lim="limit", bufflow="Lower~buffer", buffupp="Upper~buffer",
-    metric=metric, output=output), metric=args$metric, output='multiplier') {
-
-  # EXTRACT args from mpCtrl
-  if(is(args, "mseCtrl"))
-    args <- args(args)
-
-  # GET args
-  spread(lapply(args, c), FORCE=TRUE)
-
-  # PARSE labels
-  alllabels <- formals()$labels
-  alllabels[names(labels)] <- labels
-  labels <- as.list(alllabels)
-
-  # SET plot limits
-  xlim <- buffupp * 1.50
-  ylim <- 1.50
-  
-  # SET met values
-  met <- seq(0, xlim, length=200)
-
-  # COMPUTE gradient of decrease
-  dgradient <- (1 - 2^(-1))/(bufflow - lim)
-
-  # COMPUTE HCR multiplier if ...
-
-  # BELOW lim
-  out <- ifelse(met <= lim, ((met / lim) ^ 2) / 2,
-    # BETWEEN lim and bufflow
-    ifelse(met <= bufflow,
-      (0.5 * (1 + (met - lim) / (bufflow - lim))),
-    # BETWEEN bufflow and buffupp
-    ifelse(met < buffupp, 1, 
-    # ABOVE buffupp, as proportion of dgradient
-      1 + sloperatio * dgradient * (met - buffupp))))
-
-  # DATA
-  # TODO: ADD 'set'
-  dat <- data.frame(met=met, out=out)
-  
-  # TODO:
-  scale <- 1
-  
-  # TODO: ADD aes(group='set')
-  p <- ggplot(dat, aes(x=met, y=out)) +
-    coord_cartesian(ylim = c(0, ylim), clip="off") +
-    # HCR line
-    geom_line() +
-    # TODO: TARGET & WIDTH
-    # BUFFER UPP
-    annotate("segment", x=buffupp, xend=buffupp, y=0, yend=scale, linetype=2) +
-    annotate("point", x=buffupp, y=scale, size=3) +
-    annotate("text", x=buffupp, y=-ylim / 40, label=labels$buffupp,
-      vjust="bottom", parse=TRUE) +
-    # BUFFER LOW
-    annotate("segment", x=bufflow, xend=bufflow, y=0, yend=scale, linetype=2) +
-    annotate("point", x=bufflow, y=scale, size=3) +
-    annotate("text", x=bufflow, y=-ylim / 40, label=labels$bufflow,
-      vjust="bottom", parse=TRUE) +
-    # LIMIT
-    annotate("segment", x=lim, xend=lim, y=0, yend=out[which.min(abs(met - lim))], 
-      linetype=2) +
-    annotate("point", x=lim, y=out[which.min(abs(met - lim))], size=3) +
-    annotate("text", x=lim, y=-ylim / 40, label=labels$lim, vjust="bottom",
-      parse=TRUE) +
-    # SLOPE
-    annotate("segment", x=buffupp, xend=xlim, y=1, yend=1, linetype=2) +
-    annotate("text", x=buffupp + (xlim - buffupp) / 3, y=1, label="slope", 
-      vjust="bottom", parse=TRUE)
-
-  # AXIS labels
-  if(!is.null(labels$metric))
-    p <- p + xlab(parse(text=labels$metric))
-  if(!is.null(labels$output))
-    p <- p + ylab(parse(text=labels$output))
-
-  # OBS
-  if(!missing(obs)) {
-    # FLStock
-    if(is.FLStock(obs)) {
-      obs <- model.frame(metrics(obs, list(met=get(metric), out=get(output))))
-      xlim <- max(obs$met, na.rm=TRUE) * 1.05
-      ylim <- max(obs$out, na.rm=TRUE) * 1.05
-
-      # PLOT line if 1 iter
-      if(length(unique(obs$iter)) == 1)
-        p <- p + geom_point(data=obs, alpha=alpha) +
-          geom_path(data=obs, alpha=alpha) +
-          geom_label(data=subset(obs, year %in% c(min(year), max(year))),
-            aes(label=year), fill=c('gray', 'white'), alpha=1)
-      # PLOT with alpha if multiple
-      else
-        p <- p + geom_point(data=obs, alpha=alpha)
-    }
-    # NUMERIC
-    else if(is.numeric(obs)) {
-      obs <- data.frame(met=obs, out=out[which.min(abs(met - obs))])
-      p <- p + geom_point(data=obs, colour="red", size=3)
-    }
-
-  }
-  return(p)
-}
-
-# args <- list(lim=0.4, bufflow=1, buffupp=2,
-#   sloperatio=0.2)
-
-# plot_buffer.hcr(args, labels=list(metric='CPUE', output='C~mult'))
-
-# }}}
-
 # plots {{{
 
-plotOMRuns <- function(x, ...) {
-
-  xms <- FLQuants(lapply(mets, function(f) window(f(x), end=2023)))
-
-  args <- list(...)
-
-  yms <- lapply(args, function(i)
-    FLQuants(lapply(mets, function(f) window(f(om(y)), start=2023))))
-
-  ms <- c(list(OM=xms), yms)
-
-  plotListFLQuants(ms)
-}
-
-plotMetrics <- function(..., maxhr=5) {
+.plotMetrics <- function(..., maxhr=5) {
 
   args <- list(...)
 
@@ -2835,21 +2607,33 @@ setMethod("plot", signature(x="FLombf", y="missing"),
 
     if(length(args) == 0) {
 
-      do.call(plotMetrics, argx)
+      do.call(.plotMetrics, argx)
 
     } else if(length(args) == 1 & is(args[[1]], 'FLmses')) {
 
       args <- lapply(args[[1]], function(i) window(om(i), start=2024))
 
-      do.call(plotMetrics, c(argx, args))
+      do.call(.plotMetrics, c(argx, args))
 
     } else {
 
       args <- lapply(args, function(i) window(om(i), start=2024))
 
-      do.call(plotMetrics, c(argx, args))
+      do.call(.plotMetrics, c(argx, args))
   }
 })  
+
+setMethod("plot", signature(x="FLombf", y="FLmse"),
+  function(x, y) {
+
+    argx <- setNames(list(window(x, end=2024)),
+          nm=ifelse(name(x) == character(1), "OM", name(x)))
+
+    argy <- window(om(y), start=2024)
+
+    do.call(plotMetrics, c(argx, argy))
+  }
+)
 
 setMethod("plot", signature(x="FLombf", y="FLmses"),
   function(x, y) {
@@ -2862,49 +2646,6 @@ setMethod("plot", signature(x="FLombf", y="FLmses"),
     do.call(plotMetrics, c(argx, argy))
   }
 )  
-# }}}
-
-# cpue.ind {{{
-
-cpue.ind <- function(stk, idx, index=1, nyears=5, mean=yearMeans(index(idx)[[index]]),
-  sd=sqrt(yearVars(index(idx)[[index]])), args, tracking) {
-
-  # ARGS
-  ay <- args$ay
-  dlag <- args$data_lag
-  dyrs <- ac(seq(ay - dlag - (nyears - 1) , length=nyears))
-
-  # SUBSET dyrs
-  met <- biomass(idx[[index]])[1, dyrs]
-
-  # 1. AVERAGE index
-  imean <- expand(yearMeans(seasonMeans(met)), year=ay - dlag)
-
-  # 2. WEIGHTED average index of last nyears: 0.50 for last year, 0.50 others
-  ywts <- c(0.50 * seq(1, nyears - 1) / sum(seq(1, nyears - 1)), 0.50)
-  wmean <- expand(seasonMeans(yearSums(tail(met, nyears) * ywts)), year=ay - dlag)
-
-  # 3. SLOPE by iter
-  dat <- data.table(as.data.frame(met))
-  slope <- dat[, .(data=coef(lm(log(data + 1e-22) ~ year))[2]), by=iter]
-  slope <- FLQuant(slope$data, dimnames=dimnames(imean)[-4], units="")
-
-  # 4. EXP zscore
-  score <- expand(yearMeans(seasonMeans(zscore(met, mean=FLQuant(mean),
-    sd=FLQuant(sd)))), year=ay - dlag)
-  
-  # OUTPUT
-  ind <- FLQuants(index=met, mean=imean, wmean=wmean, slope=slope, zscore=score)
-
-  # TRACK
-  track(tracking, "mean.ind", ac(ay)) <- mean
-  track(tracking, "wmean.ind", ac(ay)) <- wmean
-  track(tracking, "slope.ind", ac(ay)) <- slope
-  track(tracking, "zscore.ind", ac(ay)) <- score
-
-  return(list(stk=stk, ind=ind, tracking=tracking, cpue=met))
-
-}
 # }}}
 
 # MP summaries {{{

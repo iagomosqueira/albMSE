@@ -157,8 +157,18 @@ knitr::include_graphics("report/data_sas_catchprops.png")
 - *IAC(C)*, Percentage inter-annual change in catch, $(C_{y-1} - C_{y}) / C_{y}$.
 - *P(shutdown)*, Probability of fishery shutdown, taken to be when catch falls below 1% of MSY.
 
-
 # Results
+
+## MP runs
+
+### Constant catch MP
+
+- Constant catch MP, catch level tuned to P(Kobe=green)=60%
+
+```{r model-fixedC-tune-timeseries, fig.cap="Time series of annual recruitment, spawning stock biomass, catch and fishing mortality estimated by the 2022 and 2025 NW LLCPUE stock assessment model runs for Indian ocean albacore tuna."}
+knitr::include_graphics("report/om5b_fixedC_tune_kobe60-timeseries.png")
+```
+
 
 ## MP Performance
 
