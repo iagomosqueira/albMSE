@@ -188,21 +188,47 @@ knitr::include_graphics("report/om5b_fixedC_tune_kobe60-timeseries.png")
 
 ## Parameter definitions
 
+The key estimated parameters in the Operating Model conditioning code are:
+
+ + Unfished SSB, $B_0$
+ + Initial exploited equilibrium depletion
+ + Deviations from the stock-recruit curve
+ + Selectivity parameters for each of the fleets
+
+The steepness, $h$, and (quarterly) natural mortality parameter, $M$, are defined a bivariate correlated prior that is merged with the estimated parameter posterior using a Gibbs sampling scheme.
+
 ## Age-structured dynamics
+
+The population dynamics are seasonal (quarterly) and sex-structured, where an exploited equilibrium initial state is assumed. Recruitment is at age 0 and is defined to occur in a specific (single) season.
 
 ## Stock-recruitment relationship
 
+A Beverton-Holt stock-recruit relationship is assumed and the steepness/unfished SSB parameterisation is utilised. Annual deviations to the expected recruitment are included and are defined a log-normal prior of mean zero and standard deviation $\sigma_r$. A 50/50 sex ratio-at-spawning is assumed.
+
 ## Length-at-age
+
+We assume the same underlying distribution of length-at-age as that used in the stock assessment which is sex-specific and with seasonal effects included.
 
 ## Length-weight relationship
 
+We assume the same underlying length-weight relationship as that used in the stock assessment.
+
 ## Maturity
+
+We assume the same maturity-at-age, which varies by sex and season, as that used in the stock assessment.
 
 ## Biomass quantities
 
+The most important biomass quantity, the SSB, is defined as being the female spawning biomass and is the quantity used in the stock-recruit relationship and $B_0$ refers to that unfished level. Exploitable biomass, used to calculate exploitation rates (see following subsection) utilises the seasonal weight-at-age defined using both the length-at-age and weight-at-length relationships.  
+
 ## Exploitation rate
 
-## Survey indices
+Exploitation rate, not fishing mortality, is used to define the catch equation in the fishery part of the OM. To calculate the exploitable biomass the numbers-at-age at the start of each season are multiplied by weight-at-age and selectivity-at-age and summed across ages. The fishery catch biomass is then divided by the exploitable biomass to calculate the overall fishery-specific exploitation rate (which is capped at 0.9). To finally get the exploitation rate-at-age for each fishery (which defines the catch-at-age when multiplied by numbers-at-age) the overall exploitation rate is multiplied by the selectivity-at-age.
+
+## Abundance indices
+
+To calculate model-predicted abundance indices the exploitable biomass of the fishery for which we assume the CPUE is an abundance index is multiplied by a (possibly seasonal) catchability parameter. The catchability parameters are estimated using the nuisance method assuming a log-normal likelihood function.
+
 
 # Appendix B: Harvest Control Rules
 
